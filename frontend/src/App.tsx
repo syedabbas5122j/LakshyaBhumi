@@ -2,9 +2,16 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import * as maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import './App.css'
+
+const configureMapWorker = () => {
+  if (typeof window !== 'undefined') {
+    const workerUrl = new URL('/maplibre-gl-worker.mjs', window.location.origin).toString()
+    maplibregl.setWorkerUrl(workerUrl)
+  }
+}
+
 import {
   clusterGeojson,
-  conflictGeojson,
   conflictRecords,
   districtGeojson,
   droneGeojson,
@@ -15,9 +22,16 @@ import {
 } from './data'
 
 const districtBounds: [[number, number], [number, number]] = [
-  [77.988, 15.736],
-  [78.184, 15.94],
+  [78.9805, 13.2935],
+  [80.2685, 14.2662],
 ]
+
+const mandalBounds: Record<'All' | 'Tirupati Urban' | 'Chandragiri' | 'Puttur', [number, number, number, number]> = {
+  All: [79.18, 13.45, 79.88, 13.96],
+  'Tirupati Urban': [79.398, 13.640, 79.455, 13.700],
+  Chandragiri: [79.470, 13.675, 79.545, 13.750],
+  Puttur: [79.560, 13.700, 79.640, 13.785],
+}
 
 const caseTimeline = [
   { phase: 'Intake', status: 'Completed', time: '09:15', note: 'Survey packet verified by assistant' },
@@ -62,137 +76,146 @@ const sourceMix = [
   { label: 'Field', value: 8, color: 'red' },
 ]
 
-const districtOptions = [
-  'Kurnool District',
-  'Nandyal District',
-  'Anantapur District',
-  'Kadapa District',
-  'Chittoor District',
-]
+const formatGeoLabel = (value?: string | null) => {
+  if (!value) {
+    return ''
+  }
 
-const mapStyle = {
+  return value
+    .replace(/_/g, ' ')
+    .replace(/\s*\([^)]*\)\s*/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .split(' ')
+    .map((part) => part ? part.charAt(0).toUpperCase() + part.slice(1).toLowerCase() : part)
+    .join(' ')
+}
+
+const normalizeName = (value?: string | null) =>
+  (value ?? '')
+    .toLowerCase()
+    .replace(/\b(?:district|districte)\b/g, ' ')
+    .replace(/\s*\([^)]*\)\s*/g, ' ')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+
+const districtAliasMap: Record<string, string[]> = {
+  tirupati: ['chittoor'],
+  chittoor: ['tirupati'],
+  'ysr kadapa': ['kadapa'],
+  kadapa: ['ysr kadapa'],
+  'sri potti sriramulu nellore': ['nellore'],
+  nellore: ['sri potti sriramulu nellore'],
+  ntr: ['krishna'],
+  krishna: ['ntr'],
+  'dr b r ambedkar konaseema': ['east godavari'],
+  'east godavari': ['dr b r ambedkar konaseema'],
+  ananthapuramu: ['anantapur', 'ananthapur'],
+  anantapur: ['ananthapuramu', 'ananthapur'],
+  ananthapur: ['ananthapuramu', 'anantapur'],
+  visakhapatnam: ['vishakhapatnam'],
+  vishakhapatnam: ['visakhapatnam'],
+  'parvathipuram manyam': ['parvathipuram'],
+  parvathipuram: ['parvathipuram manyam'],
+  'alluri sitharama raju': ['alluri sitharama'],
+  'alluri sitharama': ['alluri sitharama raju'],
+}
+
+const getDistrictKey = (value?: string | null) => {
+  const normalized = normalizeName(value)
+
+  if (!normalized) {
+    return ''
+  }
+
+  const matchedKey = Object.keys(districtAliasMap).find((key) => key === normalized || (districtAliasMap[key] ?? []).includes(normalized))
+  return matchedKey ?? normalized
+}
+
+const districtNameMatches = (left?: string | null, right?: string | null) => {
+  const leftKey = getDistrictKey(left)
+  const rightKey = getDistrictKey(right)
+
+  if (!leftKey || !rightKey) {
+    return false
+  }
+
+  return leftKey === rightKey
+}
+
+const getGeometryBounds = (geometry: { type: string; coordinates?: any[] } | null | undefined): [number, number, number, number] | null => {
+  if (!geometry) {
+    return null
+  }
+
+  const coordinateList: number[][] = []
+
+  const flatten = (value: any[]): void => {
+    value.forEach((entry) => {
+      if (Array.isArray(entry) && entry.length > 0 && typeof entry[0] === 'number') {
+        coordinateList.push(entry as number[])
+      } else if (Array.isArray(entry)) {
+        flatten(entry)
+      }
+    })
+  }
+
+  if (geometry.type === 'Polygon' && Array.isArray(geometry.coordinates)) {
+    flatten(geometry.coordinates)
+  } else if (geometry.type === 'MultiPolygon' && Array.isArray(geometry.coordinates)) {
+    geometry.coordinates.forEach((polygon) => {
+      if (Array.isArray(polygon)) {
+        flatten(polygon)
+      }
+    })
+  } else if (geometry.type === 'Point' && Array.isArray(geometry.coordinates)) {
+    coordinateList.push([...geometry.coordinates] as number[])
+  }
+
+  if (coordinateList.length === 0) {
+    return null
+  }
+
+  let minX = Infinity
+  let minY = Infinity
+  let maxX = -Infinity
+  let maxY = -Infinity
+
+  coordinateList.forEach(([lng, lat]) => {
+    minX = Math.min(minX, lng)
+    minY = Math.min(minY, lat)
+    maxX = Math.max(maxX, lng)
+    maxY = Math.max(maxY, lat)
+  })
+
+  return [minX, minY, maxX, maxY]
+}
+
+const fallbackMapStyle = {
   version: 8,
-  name: 'BhoomiSync Light',
-  sources: {
-    osm: {
-      type: 'raster',
-      tiles: ['https://a.tile.openstreetmap.org/{z}/{x}/{y}.png'],
-      tileSize: 256,
-      attribution: '&copy; OpenStreetMap contributors',
-    },
-    district: {
-      type: 'geojson',
-      data: districtGeojson,
-    },
-    mandals: {
-      type: 'geojson',
-      data: mandalGeojson,
-    },
-    clusters: {
-      type: 'geojson',
-      data: clusterGeojson,
-    },
-    parcels: {
-      type: 'geojson',
-      data: parcelGeojson,
-    },
-    drone: {
-      type: 'geojson',
-      data: droneGeojson,
-    },
-    gnss: {
-      type: 'geojson',
-      data: gnssGeojson,
-    },
-    conflicts: {
-      type: 'geojson',
-      data: conflictGeojson,
-    },
-  },
+  name: 'Plain fallback style',
+  sources: {},
   layers: [
-    { id: 'osm-layer', type: 'raster', source: 'osm', paint: { 'raster-opacity': 1 } },
     {
-      id: 'district-layer',
-      type: 'fill',
-      source: 'district',
+      id: 'background',
+      type: 'background',
       paint: {
-        'fill-color': '#9ab6a1',
-        'fill-opacity': 0.2,
-        'fill-outline-color': '#3a5b45',
-      },
-    },
-    {
-      id: 'mandal-layer',
-      type: 'fill',
-      source: 'mandals',
-      paint: {
-        'fill-color': '#f4c95d',
-        'fill-opacity': 0.18,
-        'fill-outline-color': '#b57c24',
-      },
-    },
-    {
-      id: 'cluster-layer',
-      type: 'circle',
-      source: 'clusters',
-      paint: {
-        'circle-radius': ['interpolate', ['linear'], ['get', 'score'], 0, 8, 100, 20],
-        'circle-color': '#e5625d',
-        'circle-opacity': 0.8,
-        'circle-stroke-color': '#ffffff',
-        'circle-stroke-width': 1,
-      },
-    },
-    {
-      id: 'parcels-layer',
-      type: 'fill',
-      source: 'parcels',
-      paint: {
-        'fill-color': '#d29f59',
-        'fill-opacity': 0.75,
-        'fill-outline-color': '#8c5f1f',
-      },
-    },
-    {
-      id: 'drone-layer',
-      type: 'fill',
-      source: 'drone',
-      paint: {
-        'fill-color': '#3f79c7',
-        'fill-opacity': 0.42,
-        'fill-outline-color': '#1e4e92',
-      },
-    },
-    {
-      id: 'gnss-layer',
-      type: 'fill',
-      source: 'gnss',
-      paint: {
-        'fill-color': '#31a39a',
-        'fill-opacity': 0.38,
-        'fill-outline-color': '#1d6d66',
-      },
-    },
-    {
-      id: 'conflict-layer',
-      type: 'fill',
-      source: 'conflicts',
-      paint: {
-        'fill-color': '#d94d4d',
-        'fill-opacity': 0.4,
-        'fill-outline-color': '#8d211d',
+        'background-color': '#edf4f7',
       },
     },
   ],
-}
+} as const
 
 function App() {
   const mapContainer = useRef<HTMLDivElement | null>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
-  const [selectedConflictId, setSelectedConflictId] = useState('KUR-00128')
+  const [selectedConflictId, setSelectedConflictId] = useState('TPT-00128')
   const [activeScale, setActiveScale] = useState<'District' | 'Mandal' | 'Conflict' | 'Feature'>('Conflict')
-  const [selectedDistrict, setSelectedDistrict] = useState('Kurnool District')
-  const [selectedMandal, setSelectedMandal] = useState<'All' | 'Orvakal' | 'Kurnool Rural' | 'Patha Kurnool'>('All')
+  const [selectedDistrict, setSelectedDistrict] = useState('Tirupati')
+  const [selectedMandal, setSelectedMandal] = useState('All')
+  const [districtOptions, setDistrictOptions] = useState<string[]>(['Tirupati'])
+  const [districtFeatureCollection, setDistrictFeatureCollection] = useState(districtGeojson)
+  const [mandalFeatureCollection, setMandalFeatureCollection] = useState(mandalGeojson)
   const [hoveredConflict, setHoveredConflict] = useState<string | null>(null)
   const [hoveredMapInfo, setHoveredMapInfo] = useState<{ x: number; y: number; title: string; subtitle: string } | null>(null)
   const [layersVisible, setLayersVisible] = useState({
@@ -205,7 +228,7 @@ function App() {
     conflicts: true,
   })
   const [apiSummary, setApiSummary] = useState({
-    district: 'Kurnool District',
+    district: 'Tirupati District',
     parcels: 14280,
     conflicts: 5,
     avgConfidence: 89,
@@ -217,9 +240,46 @@ function App() {
   const [decisionOutcome, setDecisionOutcome] = useState('Approve boundary correction')
   const [approvalState, setApprovalState] = useState<'Approved' | 'Pending review' | 'Escalated'>('Approved')
   const [decisionNote, setDecisionNote] = useState('Boundary displacement is under threshold and the parcel under review has a coherent GNSS and drone fit. The parcel should be corrected at the cadastral layer and approved for record update.')
-  const [activeNav, setActiveNav] = useState<'Dashboard' | 'Map' | 'Conflicts' | 'Datasets' | 'Ground Truth' | 'API'>('Dashboard')
+  const [activeNav, setActiveNav] = useState<'Dashboard' | 'Map' | 'Conflicts' | 'Datasets' | 'Ground Truth' | 'API'>('Map')
 
   useEffect(() => {
+    configureMapWorker()
+
+    const loadGeoOptions = async () => {
+      try {
+        const [districtResponse, mandalResponse] = await Promise.all([
+          fetch('/ap-districts.geojson'),
+          fetch('/ap-mandals.geojson'),
+        ])
+
+        if (districtResponse.ok) {
+          const districtData = await districtResponse.json()
+          const districtNames: string[] = Array.from(new Set<string>(
+            (districtData.features ?? [])
+              .map((feature: any) => String(
+                formatGeoLabel(feature.properties?.district_name ?? feature.properties?.NEW_DIST ?? feature.properties?.name ?? feature.properties?.districtName ?? ''),
+              ))
+              .filter((value: string): value is string => Boolean(value)),
+          )).sort((a, b) => a.localeCompare(b))
+
+          if (districtNames.length) {
+            setDistrictFeatureCollection(districtData)
+            setDistrictOptions(districtNames)
+            if (!districtNames.some((name) => normalizeName(name) === normalizeName(selectedDistrict))) {
+              setSelectedDistrict(districtNames[0])
+            }
+          }
+        }
+
+        if (mandalResponse.ok) {
+          const mandalData = await mandalResponse.json()
+          setMandalFeatureCollection(mandalData)
+        }
+      } catch {
+        // Keep bundled fallback values when the public GeoJSON is unavailable.
+      }
+    }
+
     const loadDashboard = async () => {
       try {
         const response = await fetch('http://localhost:4000/api/overview')
@@ -240,20 +300,90 @@ function App() {
       }
     }
 
+    loadGeoOptions()
     loadDashboard()
   }, [])
 
+  const desaMandalOptions = useMemo(() => {
+    const selectedDistrictKey = getDistrictKey(selectedDistrict)
+    const names = Array.from(new Set(
+      mandalFeatureCollection.features
+        .map((feature) => {
+          const districtName = feature.properties?.DNAME ?? feature.properties?.district_name ?? feature.properties?.district ?? ''
+          const mandalName = feature.properties?.DMNAME ?? feature.properties?.name ?? feature.properties?.dmname ?? ''
+
+          if (!districtName || !mandalName) {
+            return null
+          }
+
+          return getDistrictKey(districtName) === selectedDistrictKey ? formatGeoLabel(mandalName) : null
+        })
+        .filter((name): name is string => Boolean(name) && normalizeName(name) !== ''),
+    )).sort((a, b) => a.localeCompare(b))
+
+    return ['All', ...names]
+  }, [mandalFeatureCollection, selectedDistrict])
+
+  useEffect(() => {
+    if (selectedMandal !== 'All' && !desaMandalOptions.includes(selectedMandal)) {
+      setSelectedMandal('All')
+    }
+  }, [selectedMandal, desaMandalOptions])
+
   const filteredConflictList = useMemo(() => {
     return conflictList.filter((conflict) => {
-      const districtMatch = selectedDistrict ? conflict.district === selectedDistrict : true
-      const mandalMatch = selectedMandal === 'All' ? true : conflict.mandal === selectedMandal
+      const districtMatch = selectedDistrict ? districtNameMatches(conflict.district, selectedDistrict) : true
+      const mandalMatch = selectedMandal === 'All' ? true : districtNameMatches(conflict.mandal, selectedMandal)
       return districtMatch && mandalMatch
     })
   }, [conflictList, selectedDistrict, selectedMandal])
 
+  const filteredConflictFeatureCollection = useMemo(() => ({
+    type: 'FeatureCollection' as const,
+    features: filteredConflictList.map((conflict) => ({
+      type: 'Feature' as const,
+      properties: {
+        id: conflict.id,
+        title: conflict.title,
+        type: conflict.type,
+        severity: conflict.severity,
+        status: conflict.status,
+        confidence: conflict.confidence,
+        uncertainty: conflict.uncertainty,
+        displacement: conflict.displacement,
+        areaDifference: conflict.areaDifference,
+        district: conflict.district,
+        mandal: conflict.mandal,
+        sourceA: conflict.sourceA,
+        sourceB: conflict.sourceB,
+        description: conflict.description,
+      },
+      geometry: conflict.geometry,
+    })),
+  }), [filteredConflictList])
+
+  useEffect(() => {
+    if (filteredConflictList.length === 0) {
+      setSelectedConflictId('')
+      return
+    }
+
+    if (!filteredConflictList.some((conflict) => conflict.id === selectedConflictId)) {
+      setSelectedConflictId(filteredConflictList[0].id)
+    }
+  }, [filteredConflictList, selectedConflictId])
+
   const selectedConflict = useMemo(
     () => filteredConflictList.find((item) => item.id === selectedConflictId) ?? filteredConflictList[0] ?? conflictList[0],
     [selectedConflictId, filteredConflictList, conflictList],
+  )
+
+  const selectedMandalFeature = useMemo(
+    () => mandalFeatureCollection.features.find((feature) => {
+      const rawName = feature.properties?.DMNAME ?? feature.properties?.name ?? feature.properties?.dmname ?? ''
+      return normalizeName(formatGeoLabel(rawName)) === normalizeName(selectedMandal)
+    }) ?? null,
+    [selectedMandal, mandalFeatureCollection],
   )
 
   const activeWorkflowSummary = useMemo(() => {
@@ -300,7 +430,7 @@ function App() {
     ]
   }, [filteredConflictList])
 
-  const flyToBounds = (bbox: [number, number, number, number], padding = 60) => {
+  const flyToBounds = (bbox: [number, number, number, number], padding = 60, maxZoom = 18) => {
     const map = mapRef.current
     if (!map) {
       return
@@ -314,10 +444,67 @@ function App() {
       {
         padding,
         duration: 1400,
-        maxZoom: 18,
+        maxZoom,
       },
     )
   }
+
+  const focusOnConflict = (bbox: [number, number, number, number]) => {
+    const map = mapRef.current
+    if (!map) {
+      return
+    }
+
+    const centerLng = (bbox[0] + bbox[2]) / 2
+    const centerLat = (bbox[1] + bbox[3]) / 2
+
+    map.flyTo({
+      center: [centerLng, centerLat],
+      zoom: 17,
+      duration: 1400,
+      essential: true,
+    })
+  }
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map) {
+      return
+    }
+
+    if (selectedMandal !== 'All') {
+      const mandalFeature = mandalFeatureCollection.features.find((feature) => {
+        const rawName = feature.properties?.DMNAME ?? feature.properties?.name ?? feature.properties?.dmname ?? ''
+        return normalizeName(formatGeoLabel(rawName)) === normalizeName(selectedMandal)
+      })
+
+      const bounds = mandalFeature ? getGeometryBounds(mandalFeature.geometry) : null
+      if (bounds) {
+        setActiveScale('Mandal')
+        map.fitBounds([[bounds[0], bounds[1]], [bounds[2], bounds[3]]], {
+          padding: 60,
+          duration: 1200,
+          maxZoom: 14,
+        })
+        return
+      }
+    }
+
+    const districtFeature = districtFeatureCollection.features.find((feature) => {
+      const districtName = feature.properties?.district_name ?? feature.properties?.NEW_DIST ?? feature.properties?.name ?? ''
+      return normalizeName(formatGeoLabel(districtName)) === normalizeName(selectedDistrict.replace(/ District$/i, ''))
+    })
+
+    const districtBounds = districtFeature ? getGeometryBounds(districtFeature.geometry) : null
+    if (districtBounds) {
+      setActiveScale('District')
+      map.fitBounds([[districtBounds[0], districtBounds[1]], [districtBounds[2], districtBounds[3]]], {
+        padding: 35,
+        duration: 1200,
+        maxZoom: 11,
+      })
+    }
+  }, [districtFeatureCollection, mandalFeatureCollection, selectedDistrict, selectedMandal])
 
   useEffect(() => {
     if (activeNav !== 'Dashboard' && activeNav !== 'Map') {
@@ -339,15 +526,195 @@ function App() {
 
     const map = new maplibregl.Map({
       container: mapContainer.current,
-      style: mapStyle as maplibregl.StyleSpecification,
-      center: [78.03, 15.83],
-      zoom: 12,
-      minZoom: 9,
+      style: fallbackMapStyle as any,
+      center: [79.62, 13.78],
+      zoom: 9.5,
+      minZoom: 8,
     })
 
     mapRef.current = map
 
     map.on('load', () => {
+      requestAnimationFrame(() => map.resize())
+
+      map.addSource('state', {
+        type: 'geojson',
+        data: {
+          type: 'FeatureCollection',
+          features: [{
+            type: 'Feature',
+            properties: { name: 'Andhra Pradesh' },
+            geometry: {
+              type: 'Polygon',
+              coordinates: [[
+                [76.9, 12.6],
+                [84.8, 12.6],
+                [84.8, 19.8],
+                [76.9, 19.8],
+                [76.9, 12.6],
+              ]],
+            },
+          }],
+        },
+      })
+
+      map.addSource('district', { type: 'geojson', data: '/ap-districts.geojson' })
+      map.addSource('mandals', { type: 'geojson', data: '/ap-mandals.geojson' })
+      map.addSource('clusters', { type: 'geojson', data: clusterGeojson })
+      map.addSource('parcels', { type: 'geojson', data: parcelGeojson })
+      map.addSource('drone', { type: 'geojson', data: droneGeojson })
+      map.addSource('gnss', { type: 'geojson', data: gnssGeojson })
+      map.addSource('conflicts', { type: 'geojson', data: filteredConflictFeatureCollection })
+
+      map.addLayer({
+        id: 'state-layer',
+        type: 'fill',
+        source: 'state',
+        paint: {
+          'fill-color': '#dfe7f2',
+          'fill-opacity': 0.04,
+        },
+      })
+
+      map.addLayer({
+        id: 'state-line-layer',
+        type: 'line',
+        source: 'state',
+        paint: {
+          'line-color': '#0f172a',
+          'line-width': 3,
+          'line-opacity': 1,
+        },
+      })
+
+      map.addLayer({
+        id: 'district-layer',
+        type: 'fill',
+        source: 'district',
+        paint: {
+          'fill-color': '#7dd3a8',
+          'fill-opacity': 0.12,
+        },
+      })
+
+      map.addLayer({
+        id: 'district-line-layer',
+        type: 'line',
+        source: 'district',
+        paint: {
+          'line-color': '#116b4a',
+          'line-width': 2,
+          'line-opacity': 0.95,
+        },
+      })
+
+      map.addLayer({
+        id: 'mandal-layer',
+        type: 'fill',
+        source: 'mandals',
+        paint: {
+          'fill-color': '#fbbf24',
+          'fill-opacity': 0.08,
+        },
+      })
+
+      map.addLayer({
+        id: 'mandal-boundary-layer',
+        type: 'line',
+        source: 'mandals',
+        paint: {
+          'line-color': '#b45309',
+          'line-width': 1.3,
+          'line-opacity': 0.95,
+        },
+      })
+
+      map.addSource('selected-mandal', {
+        type: 'geojson',
+        data: {
+          type: 'FeatureCollection',
+          features: selectedMandalFeature ? [selectedMandalFeature] : [],
+        },
+      })
+
+      map.addLayer({
+        id: 'selected-mandal-layer',
+        type: 'fill',
+        source: 'selected-mandal',
+        paint: {
+          'fill-color': '#2563eb',
+          'fill-opacity': 0.55,
+        },
+      })
+
+      map.addLayer({
+        id: 'selected-mandal-line-layer',
+        type: 'line',
+        source: 'selected-mandal',
+        paint: {
+          'line-color': '#1e3a8a',
+          'line-width': 5,
+          'line-opacity': 1,
+        },
+      })
+
+      map.addLayer({
+        id: 'cluster-layer',
+        type: 'circle',
+        source: 'clusters',
+        paint: {
+          'circle-radius': ['interpolate', ['linear'], ['get', 'score'], 0, 8, 100, 20],
+          'circle-color': '#e5625d',
+          'circle-opacity': 0.8,
+          'circle-stroke-color': '#ffffff',
+          'circle-stroke-width': 1,
+        },
+      })
+
+      map.addLayer({
+        id: 'parcels-layer',
+        type: 'fill',
+        source: 'parcels',
+        paint: {
+          'fill-color': '#d29f59',
+          'fill-opacity': 0.72,
+          'fill-outline-color': '#8c5f1f',
+        },
+      })
+
+      map.addLayer({
+        id: 'drone-layer',
+        type: 'fill',
+        source: 'drone',
+        paint: {
+          'fill-color': '#3f79c7',
+          'fill-opacity': 0.44,
+          'fill-outline-color': '#1e4e92',
+        },
+      })
+
+      map.addLayer({
+        id: 'gnss-layer',
+        type: 'fill',
+        source: 'gnss',
+        paint: {
+          'fill-color': '#31a39a',
+          'fill-opacity': 0.38,
+          'fill-outline-color': '#1d6d66',
+        },
+      })
+
+      map.addLayer({
+        id: 'conflict-layer',
+        type: 'fill',
+        source: 'conflicts',
+        paint: {
+          'fill-color': '#d94d4d',
+          'fill-opacity': 0.42,
+          'fill-outline-color': '#8d211d',
+        },
+      })
+
       map.addControl(new maplibregl.NavigationControl(), 'top-right')
       map.addControl(new maplibregl.ScaleControl(), 'bottom-left')
 
@@ -405,7 +772,7 @@ function App() {
         const properties = feature.properties as Record<string, string | number | undefined>
         const id = String(properties.id ?? 'Conflict')
         const severity = String(properties.severity ?? 'High')
-        const mandate = String(properties.mandal ?? 'Kurnool')
+        const mandate = String(properties.mandal ?? 'Tirupati')
         const confidence = Number(properties.confidence ?? 0)
 
         map.getCanvas().style.cursor = 'pointer'
@@ -447,6 +814,21 @@ function App() {
         setHoveredMapInfo(null)
       })
 
+      map.on('click', 'mandal-layer', (event: maplibregl.MapLayerMouseEvent) => {
+        const feature = event.features?.[0]
+        const rawName = String(feature?.properties?.DMNAME ?? feature?.properties?.name ?? 'All')
+        const name = formatGeoLabel(rawName)
+        if (name && name !== 'All') {
+          setSelectedMandal(name)
+          setActiveScale('Mandal')
+
+          const bounds = getGeometryBounds(feature?.geometry ?? null)
+          if (bounds) {
+            flyToBounds(bounds, 70, 14)
+          }
+        }
+      })
+
       map.on('click', 'conflict-layer', (event: maplibregl.MapLayerMouseEvent) => {
         const feature = event.features?.[0]
         if (!feature?.properties) {
@@ -456,7 +838,7 @@ function App() {
         setSelectedConflictId(id)
         const match = conflictList.find((item) => item.id === id)
         if (match) {
-          flyToBounds(match.bbox, 70)
+          focusOnConflict(match.bbox)
         }
       })
 
@@ -504,6 +886,8 @@ function App() {
     const map = mapRef.current
     const selectedSource = map.getSource('selected-conflict') as maplibregl.GeoJSONSource | undefined
     const selectedLineSource = map.getSource('selected-conflict-line') as maplibregl.GeoJSONSource | undefined
+    const selectedMandalSource = map.getSource('selected-mandal') as maplibregl.GeoJSONSource | undefined
+    const conflictSource = map.getSource('conflicts') as maplibregl.GeoJSONSource | undefined
 
     if (selectedSource) {
       selectedSource.setData({
@@ -527,20 +911,34 @@ function App() {
       })
     }
 
-    if (activeScale === 'District') {
-      flyToBounds([77.988, 15.736, 78.184, 15.94], 35)
-    } else if (activeScale === 'Mandal') {
-      flyToBounds([78.024, 15.812, 78.065, 15.845], 75)
-    } else {
-      flyToBounds(selectedConflict.bbox, 70)
+    if (selectedMandalSource) {
+      selectedMandalSource.setData({
+        type: 'FeatureCollection',
+        features: selectedMandalFeature ? [selectedMandalFeature] : [],
+      })
     }
-  }, [selectedConflict, activeScale])
+
+    if (conflictSource) {
+      conflictSource.setData(filteredConflictFeatureCollection)
+    }
+
+    if (activeScale === 'District') {
+      flyToBounds([78.9805, 13.2935, 80.2685, 14.2662], 35, 11)
+    } else if (activeScale === 'Mandal' && selectedMandal !== 'All') {
+      const mandalTarget = mandalBounds[selectedMandal as keyof typeof mandalBounds] ?? null
+      if (mandalTarget) {
+        flyToBounds(mandalTarget, 80, 14)
+      }
+    } else if (filteredConflictList.length) {
+      focusOnConflict(selectedConflict.bbox)
+    }
+  }, [selectedConflict, activeScale, selectedMandal, filteredConflictList, filteredConflictFeatureCollection])
 
   const handleConflictSelect = (conflictId: string) => {
     setSelectedConflictId(conflictId)
     const match = conflictList.find((item) => item.id === conflictId)
     if (match) {
-      flyToBounds(match.bbox, 70)
+      focusOnConflict(match.bbox)
     }
   }
 
@@ -583,7 +981,11 @@ function App() {
       <section className="dashboard-toolbar filter-row">
         <div className="filter-group">
           <label>District</label>
-          <select value={selectedDistrict} onChange={(event) => setSelectedDistrict(event.target.value)}>
+          <select value={selectedDistrict} onChange={(event) => {
+            setSelectedDistrict(event.target.value)
+            setSelectedMandal('All')
+            setActiveScale('District')
+          }}>
             {districtOptions.map((district) => (
               <option key={district} value={district}>{district}</option>
             ))}
@@ -591,11 +993,14 @@ function App() {
         </div>
         <div className="filter-group">
           <label>Mandal</label>
-          <select value={selectedMandal} onChange={(event) => setSelectedMandal(event.target.value as 'All' | 'Orvakal' | 'Kurnool Rural' | 'Patha Kurnool')}>
-            <option value="All">All</option>
-            <option value="Orvakal">Orvakal</option>
-            <option value="Kurnool Rural">Kurnool Rural</option>
-            <option value="Patha Kurnool">Patha Kurnool</option>
+          <select value={selectedMandal} onChange={(event) => {
+            const nextValue = event.target.value
+            setSelectedMandal(nextValue)
+            setActiveScale(nextValue === 'All' ? 'District' : 'Mandal')
+          }}>
+            {desaMandalOptions.map((mandal) => (
+              <option key={mandal} value={mandal}>{mandal}</option>
+            ))}
           </select>
         </div>
       </section>
@@ -827,6 +1232,32 @@ function App() {
                 {scale}
               </button>
             ))}
+          </div>
+          <div className="map-admin-selectors">
+            <label className="map-select-wrap">
+              <span>District</span>
+              <select value={selectedDistrict} onChange={(event) => {
+                setSelectedDistrict(event.target.value)
+                setSelectedMandal('All')
+                setActiveScale('District')
+              }}>
+                {districtOptions.map((district) => (
+                  <option key={district} value={district}>{district}</option>
+                ))}
+              </select>
+            </label>
+            <label className="map-select-wrap">
+              <span>Mandal</span>
+              <select value={selectedMandal} onChange={(event) => {
+                const nextValue = event.target.value
+                setSelectedMandal(nextValue)
+                setActiveScale(nextValue === 'All' ? 'District' : 'Mandal')
+              }}>
+                {desaMandalOptions.map((mandal) => (
+                  <option key={mandal} value={mandal}>{mandal}</option>
+                ))}
+              </select>
+            </label>
           </div>
           <div className="layer-toggles">
             <label><input type="checkbox" checked={layersVisible.districts} onChange={() => setLayersVisible((prev) => ({ ...prev, districts: !prev.districts }))} /> District</label>

@@ -24,6 +24,13 @@ processed_clipped/
 # Logs
 npm-debug.log*
 
+# Exclude non-source project artifacts
+docs/
+*.zip
+*.docx
+frontend/public/maplibre-gl-shared.mjs
+frontend/public/maplibre-gl-worker.mjs
+
 # Local env files
 .env
 .env.*

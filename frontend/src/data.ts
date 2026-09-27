@@ -23,8 +23,8 @@ export interface ConflictRecord {
   uncertainty: number
   displacement: number
   areaDifference: number
-  district: 'Kurnool District'
-  mandal: 'Orvakal' | 'Kurnool Rural' | 'Patha Kurnool'
+  district: 'Tirupati District'
+  mandal: 'Tirupati Urban' | 'Chandragiri' | 'Puttur'
   sourceA: string
   sourceB: string
   description: string
@@ -38,52 +38,52 @@ export interface ConflictRecord {
 const conflictGeometryA = {
   type: 'Polygon' as const,
   coordinates: [[
-    [78.0285, 15.8244],
-    [78.0312, 15.8244],
-    [78.0312, 15.8275],
-    [78.0285, 15.8275],
-    [78.0285, 15.8244],
+    [79.4275, 13.6740],
+    [79.4312, 13.6740],
+    [79.4312, 13.6778],
+    [79.4275, 13.6778],
+    [79.4275, 13.6740],
   ]],
 }
 
 const conflictGeometryB = {
   type: 'Polygon' as const,
   coordinates: [[
-    [78.0291, 15.8247],
-    [78.0319, 15.8247],
-    [78.0319, 15.8279],
-    [78.0291, 15.8279],
-    [78.0291, 15.8247],
+    [79.4290, 13.6758],
+    [79.4329, 13.6758],
+    [79.4329, 13.6792],
+    [79.4290, 13.6792],
+    [79.4290, 13.6758],
   ]],
 }
 
 const conflictGeometryC = {
   type: 'Polygon' as const,
   coordinates: [[
-    [78.0382, 15.8172],
-    [78.0408, 15.8172],
-    [78.0408, 15.8206],
-    [78.0382, 15.8206],
-    [78.0382, 15.8172],
+    [79.4538, 13.6884],
+    [79.4578, 13.6884],
+    [79.4578, 13.6920],
+    [79.4538, 13.6920],
+    [79.4538, 13.6884],
   ]],
 }
 
 const conflictGeometryD = {
   type: 'Polygon' as const,
   coordinates: [[
-    [78.0468, 15.8302],
-    [78.0496, 15.8302],
-    [78.0496, 15.8333],
-    [78.0468, 15.8333],
-    [78.0468, 15.8302],
+    [79.4680, 13.6950],
+    [79.4725, 13.6950],
+    [79.4725, 13.6989],
+    [79.4680, 13.6989],
+    [79.4680, 13.6950],
   ]],
 }
 
 export const sourceCatalog: DatasetMeta[] = [
   {
     id: 'district-boundary',
-    name: 'Kurnool District Boundary',
-    source: 'OpenStreetMap / Administration',
+    name: 'Tirupati District Boundary',
+    source: 'District administration / local GIS',
     sourceType: 'REAL',
     status: 'Available',
     value: 'District boundary',
@@ -127,15 +127,15 @@ export const districtGeojson: FeatureCollection = {
   features: [
     {
       type: 'Feature',
-      properties: { id: 'district', area: 'Kurnool District' },
+      properties: { id: 'district', area: 'Tirupati District' },
       geometry: {
         type: 'Polygon',
         coordinates: [[
-          [77.988, 15.736],
-          [78.184, 15.736],
-          [78.184, 15.940],
-          [77.988, 15.940],
-          [77.988, 15.736],
+          [78.9805, 13.2935],
+          [80.2685, 13.2935],
+          [80.2685, 14.2662],
+          [78.9805, 14.2662],
+          [78.9805, 13.2935],
         ]],
       },
     },
@@ -147,43 +147,43 @@ export const mandalGeojson: FeatureCollection = {
   features: [
     {
       type: 'Feature',
-      properties: { id: 'orvakal', name: 'Orvakal', clusterScore: 82 },
+      properties: { id: 'tirupati-urban', name: 'Tirupati Urban', clusterScore: 82 },
       geometry: {
         type: 'Polygon',
         coordinates: [[
-          [78.017, 15.812],
-          [78.063, 15.812],
-          [78.063, 15.844],
-          [78.017, 15.844],
-          [78.017, 15.812],
+          [79.398, 13.640],
+          [79.455, 13.640],
+          [79.455, 13.700],
+          [79.398, 13.700],
+          [79.398, 13.640],
         ]],
       },
     },
     {
       type: 'Feature',
-      properties: { id: 'kurnool-rural', name: 'Kurnool Rural', clusterScore: 71 },
+      properties: { id: 'chandragiri', name: 'Chandragiri', clusterScore: 71 },
       geometry: {
         type: 'Polygon',
         coordinates: [[
-          [78.037, 15.819],
-          [78.085, 15.819],
-          [78.085, 15.861],
-          [78.037, 15.861],
-          [78.037, 15.819],
+          [79.470, 13.675],
+          [79.545, 13.675],
+          [79.545, 13.750],
+          [79.470, 13.750],
+          [79.470, 13.675],
         ]],
       },
     },
     {
       type: 'Feature',
-      properties: { id: 'patha-kurnool', name: 'Patha Kurnool', clusterScore: 63 },
+      properties: { id: 'puttur', name: 'Puttur', clusterScore: 63 },
       geometry: {
         type: 'Polygon',
         coordinates: [[
-          [78.084, 15.820],
-          [78.129, 15.820],
-          [78.129, 15.874],
-          [78.084, 15.874],
-          [78.084, 15.820],
+          [79.560, 13.700],
+          [79.640, 13.700],
+          [79.640, 13.785],
+          [79.560, 13.785],
+          [79.560, 13.700],
         ]],
       },
     },
@@ -196,17 +196,17 @@ export const clusterGeojson: FeatureCollection = {
     {
       type: 'Feature',
       properties: { id: 'cluster-01', score: 82, label: 'High Risk' },
-      geometry: { type: 'Point', coordinates: [78.04, 15.828] },
+      geometry: { type: 'Point', coordinates: [79.43, 13.676] },
     },
     {
       type: 'Feature',
       properties: { id: 'cluster-02', score: 68, label: 'Moderate Risk' },
-      geometry: { type: 'Point', coordinates: [78.06, 15.841] },
+      geometry: { type: 'Point', coordinates: [79.49, 13.710] },
     },
     {
       type: 'Feature',
       properties: { id: 'cluster-03', score: 58, label: 'Emerging Risk' },
-      geometry: { type: 'Point', coordinates: [78.12, 15.915] },
+      geometry: { type: 'Point', coordinates: [79.60, 13.720] },
     },
   ],
 }
@@ -216,22 +216,22 @@ export const parcelGeojson: FeatureCollection = {
   features: [
     {
       type: 'Feature',
-      properties: { feature_id: 'KUR-P-101', owner: 'M. Narasamma', source: 'cadastral' },
+      properties: { feature_id: 'TPT-P-101', owner: 'M. Narasamma', source: 'cadastral' },
       geometry: conflictGeometryA,
     },
     {
       type: 'Feature',
-      properties: { feature_id: 'KUR-P-117', owner: 'K. Raghava', source: 'cadastral' },
+      properties: { feature_id: 'TPT-P-117', owner: 'K. Raghava', source: 'cadastral' },
       geometry: conflictGeometryB,
     },
     {
       type: 'Feature',
-      properties: { feature_id: 'KUR-P-244', owner: 'S. Babu Rao', source: 'cadastral' },
+      properties: { feature_id: 'TPT-P-244', owner: 'S. Babu Rao', source: 'cadastral' },
       geometry: conflictGeometryC,
     },
     {
       type: 'Feature',
-      properties: { feature_id: 'KUR-P-372', owner: 'D. Venkatesh', source: 'cadastral' },
+      properties: { feature_id: 'TPT-P-372', owner: 'D. Venkatesh', source: 'cadastral' },
       geometry: conflictGeometryD,
     },
   ],
@@ -246,11 +246,11 @@ export const droneGeojson: FeatureCollection = {
       geometry: {
         type: 'Polygon',
         coordinates: [[
-          [78.0288, 15.8240],
-          [78.0315, 15.8240],
-          [78.0315, 15.8278],
-          [78.0288, 15.8278],
-          [78.0288, 15.8240],
+          [79.4278, 13.6745],
+          [79.4314, 13.6745],
+          [79.4314, 13.6782],
+          [79.4278, 13.6782],
+          [79.4278, 13.6745],
         ]],
       },
     },
@@ -260,11 +260,11 @@ export const droneGeojson: FeatureCollection = {
       geometry: {
         type: 'Polygon',
         coordinates: [[
-          [78.0296, 15.8249],
-          [78.0323, 15.8249],
-          [78.0323, 15.8283],
-          [78.0296, 15.8283],
-          [78.0296, 15.8249],
+          [79.4542, 13.6892],
+          [79.4571, 13.6892],
+          [79.4571, 13.6926],
+          [79.4542, 13.6926],
+          [79.4542, 13.6892],
         ]],
       },
     },
@@ -280,11 +280,11 @@ export const gnssGeojson: FeatureCollection = {
       geometry: {
         type: 'Polygon',
         coordinates: [[
-          [78.0290, 15.8242],
-          [78.0311, 15.8242],
-          [78.0311, 15.8271],
-          [78.0290, 15.8271],
-          [78.0290, 15.8242],
+          [79.4282, 13.6748],
+          [79.4308, 13.6748],
+          [79.4308, 13.6774],
+          [79.4282, 13.6774],
+          [79.4282, 13.6748],
         ]],
       },
     },
@@ -294,11 +294,11 @@ export const gnssGeojson: FeatureCollection = {
       geometry: {
         type: 'Polygon',
         coordinates: [[
-          [78.0296, 15.8245],
-          [78.0317, 15.8245],
-          [78.0317, 15.8279],
-          [78.0296, 15.8279],
-          [78.0296, 15.8245],
+          [79.4548, 13.6898],
+          [79.4575, 13.6898],
+          [79.4575, 13.6930],
+          [79.4548, 13.6930],
+          [79.4548, 13.6898],
         ]],
       },
     },
@@ -311,7 +311,7 @@ export const conflictGeojson: FeatureCollection = {
     {
       type: 'Feature',
       properties: {
-        id: 'KUR-00128',
+        id: 'TPT-00128',
         title: 'Boundary mismatch',
         type: 'Boundary mismatch',
         severity: 'High',
@@ -327,18 +327,18 @@ export const conflictGeojson: FeatureCollection = {
       geometry: {
         type: 'Polygon',
         coordinates: [[
-          [78.0288, 15.8240],
-          [78.0319, 15.8240],
-          [78.0319, 15.8283],
-          [78.0288, 15.8283],
-          [78.0288, 15.8240],
+          [79.4275, 13.6740],
+          [79.4320, 13.6740],
+          [79.4320, 13.6788],
+          [79.4275, 13.6788],
+          [79.4275, 13.6740],
         ]],
       },
     },
     {
       type: 'Feature',
       properties: {
-        id: 'KUR-00191',
+        id: 'TPT-00191',
         title: 'Parcel edge offset',
         type: 'Boundary mismatch',
         severity: 'Medium',
@@ -354,18 +354,18 @@ export const conflictGeojson: FeatureCollection = {
       geometry: {
         type: 'Polygon',
         coordinates: [[
-          [78.0382, 15.8172],
-          [78.0408, 15.8172],
-          [78.0408, 15.8206],
-          [78.0382, 15.8206],
-          [78.0382, 15.8172],
+          [79.4538, 13.6884],
+          [79.4576, 13.6884],
+          [79.4576, 13.6922],
+          [79.4538, 13.6922],
+          [79.4538, 13.6884],
         ]],
       },
     },
     {
       type: 'Feature',
       properties: {
-        id: 'KUR-00231',
+        id: 'TPT-00231',
         title: 'Attribute mismatch',
         type: 'Attribute conflict',
         severity: 'Low',
@@ -381,11 +381,11 @@ export const conflictGeojson: FeatureCollection = {
       geometry: {
         type: 'Polygon',
         coordinates: [[
-          [78.0468, 15.8302],
-          [78.0496, 15.8302],
-          [78.0496, 15.8333],
-          [78.0468, 15.8333],
-          [78.0468, 15.8302],
+          [79.4678, 13.6952],
+          [79.4720, 13.6952],
+          [79.4720, 13.6990],
+          [79.4678, 13.6990],
+          [79.4678, 13.6952],
         ]],
       },
     },
@@ -394,7 +394,7 @@ export const conflictGeojson: FeatureCollection = {
 
 export const conflictRecords: ConflictRecord[] = [
   {
-    id: 'KUR-00128',
+    id: 'TPT-00128',
     title: 'Boundary mismatch',
     type: 'Boundary mismatch',
     severity: 'High',
@@ -403,19 +403,19 @@ export const conflictRecords: ConflictRecord[] = [
     uncertainty: 0.84,
     displacement: 1.84,
     areaDifference: 12.7,
-    district: 'Kurnool District',
-    mandal: 'Orvakal',
+    district: 'Tirupati District',
+    mandal: 'Tirupati Urban',
     sourceA: 'Drone Survey',
     sourceB: 'GNSS / CORS Survey',
     description: 'Boundary mismatch detected between drone-derived parcel edge and GNSS reference geometry.',
-    bbox: [78.0288, 15.8240, 78.0319, 15.8283],
+    bbox: [79.4275, 13.6740, 79.4320, 13.6788],
     geometry: conflictGeometryA,
     sourceGeometry: conflictGeometryB,
     comparisonGeometry: conflictGeometryC,
     layerIds: ['cadastral-layer', 'drone-layer', 'gnss-layer'],
   },
   {
-    id: 'KUR-00191',
+    id: 'TPT-00191',
     title: 'Parcel edge offset',
     type: 'Boundary mismatch',
     severity: 'Medium',
@@ -424,19 +424,19 @@ export const conflictRecords: ConflictRecord[] = [
     uncertainty: 0.63,
     displacement: 1.12,
     areaDifference: 9.1,
-    district: 'Kurnool District',
-    mandal: 'Kurnool Rural',
+    district: 'Tirupati District',
+    mandal: 'Chandragiri',
     sourceA: 'Parcel Fabric',
     sourceB: 'Drone Survey',
     description: 'Cadastral geometry differs from drone boundary by a consistent offset.',
-    bbox: [78.0382, 15.8172, 78.0408, 15.8206],
+    bbox: [79.4538, 13.6884, 79.4576, 13.6922],
     geometry: conflictGeometryC,
     sourceGeometry: conflictGeometryB,
     comparisonGeometry: conflictGeometryA,
     layerIds: ['cadastral-layer', 'drone-layer'],
   },
   {
-    id: 'KUR-00231',
+    id: 'TPT-00231',
     title: 'Attribute mismatch',
     type: 'Attribute conflict',
     severity: 'Low',
@@ -445,12 +445,12 @@ export const conflictRecords: ConflictRecord[] = [
     uncertainty: 0.51,
     displacement: 0.65,
     areaDifference: 3.8,
-    district: 'Kurnool District',
-    mandal: 'Patha Kurnool',
+    district: 'Tirupati District',
+    mandal: 'Puttur',
     sourceA: 'Municipal GIS',
     sourceB: 'Revenue records',
     description: 'Owner name and parcel classification differ across source systems.',
-    bbox: [78.0468, 15.8302, 78.0496, 15.8333],
+    bbox: [79.4678, 13.6952, 79.4720, 13.6990],
     geometry: conflictGeometryD,
     sourceGeometry: conflictGeometryA,
     comparisonGeometry: conflictGeometryB,
