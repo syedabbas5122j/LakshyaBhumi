@@ -20,12 +20,14 @@ data/
 raw/
 processed/
 processed_clipped/
+backend/uploaded-data/
 
 # Logs
 npm-debug.log*
 
 # Exclude non-source project artifacts
-docs/
+docs/*
+!docs/user-entry-points.md
 *.zip
 *.docx
 frontend/public/maplibre-gl-shared.mjs

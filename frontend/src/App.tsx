@@ -2,6 +2,14 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import * as maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import './App.css'
+import LandingAuth from './components/LandingAuth'
+import RoleWorkspace, { getPortalProfile, type WorkspaceView } from './components/RoleWorkspace'
+import ConflictGeometryComparison from './components/ConflictGeometryComparison'
+import CitizenPortal from './pages/citizen/CitizenPortal'
+import UploadData from './pages/officer/UploadData'
+import { authApi } from './services/authApi'
+import { groundTruthApi } from './services/groundTruthApi'
+import type { Polygon } from 'geojson'
 
 const configureMapWorker = () => {
   if (typeof window !== 'undefined') {
@@ -18,7 +26,8 @@ import {
   gnssGeojson,
   mandalGeojson,
   parcelGeojson,
-  sourceCatalog,
+  departmentIntegrations,
+  sampleHarmonizationRuns,
 } from './data'
 
 const districtBounds: [[number, number], [number, number]] = [
@@ -206,10 +215,33 @@ const fallbackMapStyle = {
   ],
 } as const
 
+type ActivePortalUser = { audience: 'Officer' | 'Citizen'; role: string }
+
+const readStoredUser = (): ActivePortalUser | null => {
+  if (typeof window === 'undefined') {
+    return null
+  }
+  try {
+    const user = JSON.parse(window.sessionStorage.getItem('bhusha_user') ?? 'null')
+    if (user?.role && (user.audience === 'officer' || user.audience === 'citizen')) {
+      return { audience: user.audience === 'citizen' ? 'Citizen' : 'Officer', role: user.role }
+    }
+  } catch {
+    return null
+  }
+  return null
+}
+
 function App() {
+  const [activeUser, setActiveUser] = useState<ActivePortalUser | null>(() => readStoredUser())
+  const [portalMode, setPortalMode] = useState<'landing' | 'officer-login' | 'citizen-login' | 'workspace'>(() => readStoredUser() ? 'workspace' : 'landing')
   const mapContainer = useRef<HTMLDivElement | null>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
   const [selectedConflictId, setSelectedConflictId] = useState('TPT-00128')
+  const [correctionDrafts, setCorrectionDrafts] = useState<Record<string, Polygon>>({})
+  const [groundTruthNote, setGroundTruthNote] = useState('Please verify the redrawn boundary against field measurements and source records.')
+  const [groundTruthMessage, setGroundTruthMessage] = useState('')
+  const [groundTruthBusy, setGroundTruthBusy] = useState(false)
   const [activeScale, setActiveScale] = useState<'District' | 'Mandal' | 'Conflict' | 'Feature'>('Conflict')
   const [selectedDistrict, setSelectedDistrict] = useState('Tirupati')
   const [selectedMandal, setSelectedMandal] = useState('All')
@@ -235,12 +267,20 @@ function App() {
     activeMandalCount: 6,
     openCases: 3,
   })
-  const [tableCatalog, setTableCatalog] = useState(sourceCatalog)
+  const [integrationDepartment, setIntegrationDepartment] = useState(departmentIntegrations[0].id)
+  const [integrationMethod, setIntegrationMethod] = useState('Secure API')
+  const [integrationContact, setIntegrationContact] = useState('')
+  const [integrationNotes, setIntegrationNotes] = useState('')
+  const [integrationRequestMessage, setIntegrationRequestMessage] = useState('')
+  const [integrationRequests, setIntegrationRequests] = useState<Array<{ department: string; method: string; contact: string; notes: string }>>([])
+  const [outputFilter, setOutputFilter] = useState('All')
+  const [runStatusFilter, setRunStatusFilter] = useState<'All' | 'Published' | 'In review' | 'Superseded'>('All')
+  const [selectedRunId, setSelectedRunId] = useState('harm-014')
   const [conflictList, setConflictList] = useState(conflictRecords)
   const [decisionOutcome, setDecisionOutcome] = useState('Approve boundary correction')
   const [approvalState, setApprovalState] = useState<'Approved' | 'Pending review' | 'Escalated'>('Approved')
   const [decisionNote, setDecisionNote] = useState('Boundary displacement is under threshold and the parcel under review has a coherent GNSS and drone fit. The parcel should be corrected at the cadastral layer and approved for record update.')
-  const [activeNav, setActiveNav] = useState<'Dashboard' | 'Map' | 'Conflicts' | 'Datasets' | 'Ground Truth' | 'API'>('Map')
+  const [activeNav, setActiveNav] = useState<WorkspaceView>('Workspace')
 
   useEffect(() => {
     configureMapWorker()
@@ -287,9 +327,6 @@ function App() {
         const data = await response.json()
         if (data.summary) {
           setApiSummary(data.summary)
-        }
-        if (data.sourceCatalog) {
-          setTableCatalog(data.sourceCatalog)
         }
         if (data.conflictRecords?.length) {
           setConflictList(data.conflictRecords)
@@ -1189,15 +1226,15 @@ function App() {
 
         <div className="panel audit-panel">
           <div className="panel-header small-header">
-            <span>Data source health</span>
-            <button type="button">Live</button>
+            <span>Department integrations</span>
+            <button type="button" onClick={() => setActiveNav('Integrations')}>View all</button>
           </div>
           <div className="audit-list">
-            {tableCatalog.slice(0, 3).map((entry) => (
+            {departmentIntegrations.slice(0, 3).map((entry) => (
               <div key={entry.id} className="audit-item">
                 <div>
-                  <strong>{entry.name}</strong>
-                  <small>{entry.source}</small>
+                  <strong>{entry.department}</strong>
+                  <small>{entry.dataScope}</small>
                 </div>
                 <span className="audit-pill">{entry.status}</span>
               </div>
@@ -1309,11 +1346,10 @@ function App() {
           <button className="primary">Review board</button>
         </div>
       </header>
-      <section className="bottom-grid">
+      <section className="conflict-review-layout">
         <div className="panel conflict-list-panel">
           <div className="panel-header small-header">
-            <span>CONFLICTS</span>
-            <button>Heatmap</button>
+            <span>CONFLICT QUEUE · {filteredConflictList.length}</span>
           </div>
           {filteredConflictList.map((conflict) => (
             <button
@@ -1341,65 +1377,219 @@ function App() {
 
         <div className="panel inspector-panel">
           <div className="panel-header small-header">
-            <span>CONFLICT INSPECTOR</span>
-            <button>Resolve</button>
+            <span>SELECTED CONFLICT</span>
+            <button type="button" onClick={() => {
+              setActiveScale('Conflict')
+              setActiveNav('Map')
+            }}>Locate on map</button>
           </div>
           <div className="title-row">
             <h3>{selectedConflict.id}</h3>
             <span className={`severity ${selectedConflict.severity.toLowerCase()}`}>{selectedConflict.severity}</span>
           </div>
+          <div className="conflict-inspector-location">{selectedConflict.title} <span>·</span> {selectedConflict.district} <span>·</span> {selectedConflict.mandal}</div>
+          <div className="conflict-source-comparison" aria-label="Compared data sources">
+            <div><small>SOURCE A</small><strong>{selectedConflict.sourceA}</strong></div>
+            <span className="source-versus">VS</span>
+            <div><small>SOURCE B</small><strong>{selectedConflict.sourceB}</strong></div>
+          </div>
+          <div className="conflict-geometry-heading"><span>GEOMETRY OVERLAY</span><small>Both source boundaries shown in the same view</small></div>
+          <div className="conflict-geometry-legend">
+            <span><i className="source-a-swatch" />{selectedConflict.sourceA}</span>
+            <span><i className="source-b-swatch" />{selectedConflict.sourceB}</span>
+          </div>
+          <ConflictGeometryComparison
+            conflictId={selectedConflict.id}
+            sourceAName={selectedConflict.sourceA}
+            sourceBName={selectedConflict.sourceB}
+            sourceAGeometry={selectedConflict.sourceGeometry}
+            sourceBGeometry={selectedConflict.comparisonGeometry}
+            correctionGeometry={correctionDrafts[selectedConflict.id] ?? null}
+            onCorrectionSaved={(geometry) => {
+              setCorrectionDrafts((drafts) => ({ ...drafts, [selectedConflict.id]: geometry }))
+              setGroundTruthMessage('Correction draft saved for this conflict. You can submit it for field verification when ready.')
+            }}
+          />
+          {correctionDrafts[selectedConflict.id] && (
+            <form className="ground-truth-submit-form" onSubmit={async (event) => {
+              event.preventDefault()
+              setGroundTruthBusy(true)
+              setGroundTruthMessage('')
+              try {
+                const result = await groundTruthApi.submitRequest({
+                  conflict_id: selectedConflict.id,
+                  geometry: correctionDrafts[selectedConflict.id],
+                  note: groundTruthNote,
+                })
+                setGroundTruthMessage(`Ground-truth request ${result.request.id} queued for review.`)
+              } catch (error) {
+                setGroundTruthMessage(error instanceof Error ? error.message : 'Could not submit the ground-truth request.')
+              } finally {
+                setGroundTruthBusy(false)
+              }
+            }}>
+              <label><span>Ground-truth request note</span><textarea value={groundTruthNote} onChange={(event) => setGroundTruthNote(event.target.value)} rows={2} required /></label>
+              <button type="submit" className="request-ground-truth-button" disabled={groundTruthBusy}>{groundTruthBusy ? 'Submitting…' : 'Send for ground-truth review'}</button>
+              {groundTruthMessage && <p role="status">{groundTruthMessage}</p>}
+            </form>
+          )}
+          <div className="conflict-key-metrics">
+            <div><small>GEOMETRY CONFIDENCE</small><strong>{selectedConflict.confidence}%</strong></div>
+            <div><small>BOUNDARY OFFSET</small><strong>{selectedConflict.displacement.toFixed(2)} m</strong></div>
+            <div><small>POSITION UNCERTAINTY</small><strong>±{selectedConflict.uncertainty.toFixed(2)} m</strong></div>
+          </div>
           <p className="inspector-description">{selectedConflict.description}</p>
           <div className="facts-grid">
             <div><label>Type</label><strong>{selectedConflict.type}</strong></div>
-            <div><label>Confidence</label><strong>{selectedConflict.confidence}%</strong></div>
-            <div><label>Displacement</label><strong>{selectedConflict.displacement.toFixed(2)} m</strong></div>
-            <div><label>Uncertainty</label><strong>±{selectedConflict.uncertainty.toFixed(2)} m</strong></div>
-            <div><label>Source A</label><strong>{selectedConflict.sourceA}</strong></div>
-            <div><label>Source B</label><strong>{selectedConflict.sourceB}</strong></div>
             <div><label>Status</label><strong>{selectedConflict.status}</strong></div>
             <div><label>Area diff.</label><strong>{selectedConflict.areaDifference.toFixed(1)} m²</strong></div>
-          </div>
-          <div className="source-strip">
-            <span>REAL DATA</span>
-            <span>DERIVED DEMO</span>
-            <span>AI ANALYSIS</span>
           </div>
         </div>
       </section>
     </>
   )
 
-  const renderDatasetsView = () => (
+  const renderIntegrationsView = () => (
     <>
       <header className="topbar">
         <div>
-          <div className="eyebrow">DATASETS</div>
-          <h2>Integrated source catalog</h2>
+          <div className="eyebrow">DEPARTMENT ACCESS</div>
+          <h2>Department integrations</h2>
+          <p className="view-intro">Connect authorized departmental systems through an approved API, managed file exchange, or read-only replica.</p>
         </div>
-        <div className="topbar-actions">
-          <button className="secondary">Refresh feeds</button>
-          <button className="primary">+ Add dataset</button>
-        </div>
+        <div className="topbar-actions"><span className="integration-status-summary">{departmentIntegrations.length} connections not configured</span></div>
       </header>
-      <section className="panel">
-        <div className="panel-header small-header">
-          <span>DATA SOURCES</span>
-          <button>+ Add Dataset</button>
+
+      <section className="integration-grid">
+        {departmentIntegrations.map((integration) => (
+          <article className="integration-card" key={integration.id}>
+            <div className="integration-card-heading"><span className="integration-mark" aria-hidden="true">↔</span><span className="integration-state">NOT CONNECTED</span></div>
+            <h3>{integration.department}</h3>
+            <p>{integration.dataScope}</p>
+            <button type="button" onClick={() => {
+              setIntegrationDepartment(integration.id)
+              document.getElementById('integration-access-request')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+            }}>Request access setup <span aria-hidden="true">→</span></button>
+          </article>
+        ))}
+      </section>
+
+      <section className="integration-request-section" id="integration-access-request">
+        <div className="integration-request-heading">
+          <div><span className="eyebrow">ACCESS REQUEST</span><h3>Provide the approved connection method</h3></div>
+          <p>Do not enter passwords, API keys, tokens, or database credentials here. An authorized administrator must exchange secrets through the department-approved secure channel.</p>
         </div>
-        <div className="dataset-panel">
-          {tableCatalog.map((item) => (
-            <div key={item.id} className="dataset-row">
-              <div>
-                <strong>{item.name}</strong>
-                <small>{item.source}</small>
-              </div>
-              <span className={`tag ${item.sourceType.toLowerCase().replace(/\s+/g, '-')}`}>{item.sourceType}</span>
-            </div>
-          ))}
-        </div>
+        <form className="integration-request-form" onSubmit={(event) => {
+          event.preventDefault()
+          const department = departmentIntegrations.find((item) => item.id === integrationDepartment)
+          setIntegrationRequests((requests) => [...requests, {
+            department: department?.department ?? integrationDepartment,
+            method: integrationMethod,
+            contact: integrationContact,
+            notes: integrationNotes,
+          }])
+          setIntegrationRequestMessage('Request recorded in this browser session. It has not been sent to an administrator or saved to the backend.')
+        }}>
+          <label className="filter-group"><span>Department system</span><select value={integrationDepartment} onChange={(event) => setIntegrationDepartment(event.target.value)}>{departmentIntegrations.map((entry) => <option key={entry.id} value={entry.id}>{entry.department}</option>)}</select></label>
+          <label className="filter-group"><span>Available access method</span><select value={integrationMethod} onChange={(event) => setIntegrationMethod(event.target.value)}><option>Secure API</option><option>Managed SFTP / file exchange</option><option>Read-only database replica</option><option>Other approved method</option></select></label>
+          <label className="filter-group"><span>Authorized department contact</span><input value={integrationContact} onChange={(event) => setIntegrationContact(event.target.value)} placeholder="Name or official email" required /></label>
+          <label className="filter-group integration-notes"><span>Non-secret connection notes</span><textarea value={integrationNotes} onChange={(event) => setIntegrationNotes(event.target.value)} placeholder="Data scope, update schedule, or approval reference. Do not include credentials." rows={3} /></label>
+          <button className="primary integration-submit" type="submit">Record access request</button>
+        </form>
+        {integrationRequestMessage && <p className="integration-request-message" role="status">{integrationRequestMessage}</p>}
+        {integrationRequests.length > 0 && <div className="integration-request-list"><strong>Session requests</strong>{integrationRequests.map((request, index) => <p key={`${request.department}-${index}`}>{request.department} · {request.method} · {request.contact}</p>)}</div>}
       </section>
     </>
   )
+
+  const renderVersionHistoryView = () => {
+    const filteredRuns = sampleHarmonizationRuns.filter((run) =>
+      (outputFilter === 'All' || run.outputId === outputFilter)
+      && (runStatusFilter === 'All' || run.status === runStatusFilter),
+    )
+    const selectedRun = filteredRuns.find((run) => run.id === selectedRunId) ?? filteredRuns[0]
+    const latestPublishedRun = selectedRun
+      ? sampleHarmonizationRuns.find((run) => run.outputId === selectedRun.outputId && run.status === 'Published')
+      : undefined
+
+    return (
+      <>
+        <header className="topbar">
+          <div>
+            <div className="eyebrow">GEOAI OUTPUT LIFECYCLE</div>
+            <h2>AI harmonization outputs</h2>
+            <p className="view-intro">Each run records a versioned integrated output and the source/model versions that produced it.</p>
+          </div>
+          <div className="topbar-actions"><span className="demo-history-tag">ILLUSTRATIVE DEMO RUNS</span></div>
+        </header>
+
+        <section className="version-history-notice">
+          <strong>Demo output runs</strong>
+          <span>These examples demonstrate provenance and review tracking. AI processing, output storage, publishing, and rollback are not connected to the backend.</span>
+        </section>
+
+        <section className="version-history-toolbar" aria-label="Harmonization output filters">
+          <label className="filter-group">
+            <span>Harmonized output</span>
+            <select value={outputFilter} onChange={(event) => setOutputFilter(event.target.value)}>
+              <option value="All">All outputs</option>
+              {Array.from(new Map(sampleHarmonizationRuns.map((run) => [run.outputId, run.outputName]))).map(([id, name]) => <option key={id} value={id}>{name}</option>)}
+            </select>
+          </label>
+          <label className="filter-group">
+            <span>Run status</span>
+            <select value={runStatusFilter} onChange={(event) => setRunStatusFilter(event.target.value as typeof runStatusFilter)}>
+              <option value="All">All statuses</option>
+              <option value="Published">Published</option>
+              <option value="In review">In review</option>
+              <option value="Superseded">Superseded</option>
+            </select>
+          </label>
+          <span className="version-result-count">{filteredRuns.length} output runs</span>
+        </section>
+
+        <section className="version-table-wrap">
+          <table className="version-table">
+            <thead>
+              <tr><th>Harmonized output</th><th>Output version</th><th>Run date</th><th>Status</th><th>Model / metrics</th><th>Action</th></tr>
+            </thead>
+            <tbody>
+              {filteredRuns.map((run) => {
+                return (
+                  <tr key={run.id} className={selectedRun?.id === run.id ? 'selected' : ''}>
+                    <td><strong>{run.outputName}</strong><small>{run.id} · {run.changedFeatures.toLocaleString()} features changed</small></td>
+                    <td className="version-number">v{run.outputVersion}</td>
+                    <td>{run.createdAt}</td>
+                    <td><span className={`version-status ${run.status === 'In review' ? 'draft' : run.status.toLowerCase()}`}>{run.status}</span></td>
+                    <td className="version-summary"><strong>{run.modelVersion}</strong><small>{run.confidence}% confidence · ±{run.uncertaintyMeters} m</small></td>
+                    <td><button type="button" className="version-compare-button" onClick={() => {
+                      setSelectedRunId(run.id)
+                      setSelectedConflictId(run.comparisonConflictId)
+                      setActiveNav('Conflicts')
+                    }}>Compare geometry</button></td>
+                  </tr>
+                )
+              })}
+              {filteredRuns.length === 0 && <tr><td colSpan={6} className="version-empty">No output runs match these filters.</td></tr>}
+            </tbody>
+          </table>
+        </section>
+
+        {selectedRun && latestPublishedRun && selectedRun.id !== latestPublishedRun.id && (
+          <section className="version-comparison">
+            <div className="version-comparison-heading">
+              <div><span className="eyebrow">OUTPUT RUN COMPARISON</span><h3>{selectedRun.outputName}</h3></div>
+              <span>v{selectedRun.outputVersion} <b>→</b> v{latestPublishedRun.outputVersion} (latest published)</span>
+            </div>
+            <div className="version-comparison-grid">
+              <div><small>SELECTED RUN · {selectedRun.createdAt} · {selectedRun.status.toUpperCase()}</small><p>{selectedRun.summary}</p><p><strong>Inputs:</strong> {selectedRun.inputVersions.join(' · ')}</p></div>
+              <div><small>LATEST PUBLISHED OUTPUT · {latestPublishedRun.createdAt}</small><p>{latestPublishedRun.summary}</p><p><strong>Inputs:</strong> {latestPublishedRun.inputVersions.join(' · ')}</p></div>
+            </div>
+          </section>
+        )}
+      </>
+    )
+  }
 
   const renderGroundTruthView = () => (
     <>
@@ -1507,14 +1697,33 @@ function App() {
     </>
   )
 
+  const signOut = async () => {
+    try {
+      await authApi.signOut()
+    } catch {
+      authApi.clearSession()
+    }
+    setActiveUser(null)
+    setActiveNav('Workspace')
+    setPortalMode('landing')
+  }
+
   const renderActiveView = () => {
     switch (activeNav) {
+      case 'Workspace':
+        return activeUser?.audience === 'Officer'
+          ? <RoleWorkspace role={activeUser.role} onNavigate={setActiveNav} onSignOut={signOut} />
+          : renderDashboardView()
       case 'Map':
         return renderMapView()
       case 'Conflicts':
         return renderConflictsView()
-      case 'Datasets':
-        return renderDatasetsView()
+      case 'Integrations':
+        return renderIntegrationsView()
+      case 'Upload Data':
+        return <UploadData />
+      case 'Version History':
+        return renderVersionHistoryView()
       case 'Ground Truth':
         return renderGroundTruthView()
       case 'API':
@@ -1524,31 +1733,51 @@ function App() {
     }
   }
 
+  if (portalMode !== 'workspace') {
+    return (
+      <LandingAuth
+        mode={portalMode}
+        onNavigate={setPortalMode}
+        onEnterWorkspace={(audience, role) => {
+          setActiveUser({ audience, role })
+          setActiveNav('Workspace')
+          setPortalMode('workspace')
+        }}
+      />
+    )
+  }
+
+  if (activeUser?.audience === 'Citizen') {
+    return <CitizenPortal role={activeUser.role} onSignOut={signOut} />
+  }
+
+  const portalProfile = activeUser ? getPortalProfile(activeUser.role) : null
+
   return (
     <div className="app-shell">
       <aside className="sidebar">
         <div className="brand-block">
           <div className="brand-mark">B</div>
           <div>
-            <div className="eyebrow">LAND INTELLIGENCE</div>
+            <div className="eyebrow">{portalProfile?.label.toUpperCase() ?? 'LAND INTELLIGENCE'}</div>
             <h1>BhoomiSync</h1>
           </div>
         </div>
 
         <nav className="nav-stack">
-          {(['Dashboard', 'Map', 'Conflicts', 'Datasets', 'Ground Truth', 'API'] as const).map((item) => (
+          {(portalProfile?.navigation ?? ['Workspace', 'Dashboard', 'Map', 'Conflicts', 'Integrations', 'Version History', 'Ground Truth', 'API']).map((item) => (
             <button
               key={item}
               type="button"
               className={`nav-item ${activeNav === item ? 'active' : ''}`}
               onClick={() => setActiveNav(item)}
             >
-              {item}
+              {item === 'Workspace' ? 'My workspace' : item}
             </button>
           ))}
         </nav>
 
-        <div className="metrics">
+        {portalProfile?.label !== 'Field operations' && <div className="metrics">
           <div className="metric-card">
             <span>Total parcels</span>
             <strong>{apiSummary.parcels.toLocaleString()}</strong>
@@ -1561,23 +1790,9 @@ function App() {
             <span>Avg confidence</span>
             <strong>{apiSummary.avgConfidence}%</strong>
           </div>
-        </div>
+        </div>}
 
-        <div className="dataset-panel">
-          <div className="panel-header">
-            <span>DATA SOURCES</span>
-            <button>+ Add Dataset</button>
-          </div>
-          {tableCatalog.map((item) => (
-            <div key={item.id} className="dataset-row">
-              <div>
-                <strong>{item.name}</strong>
-                <small>{item.source}</small>
-              </div>
-              <span className={`tag ${item.sourceType.toLowerCase().replace(/\s+/g, '-')}`}>{item.sourceType}</span>
-            </div>
-          ))}
-        </div>
+        <button type="button" className="nav-item sign-out-nav" onClick={signOut}>Sign out · {activeUser?.role}</button>
       </aside>
 
       <main className="content-area">

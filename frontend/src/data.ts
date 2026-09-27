@@ -122,6 +122,49 @@ export const sourceCatalog: DatasetMeta[] = [
   },
 ]
 
+export interface DepartmentIntegration {
+  id: string
+  department: string
+  dataScope: string
+  status: 'Not connected'
+}
+
+export const departmentIntegrations: DepartmentIntegration[] = [
+  { id: 'survey-land-records', department: 'Survey & Land Records', dataScope: 'Cadastral parcels and administrative boundaries', status: 'Not connected' },
+  { id: 'revenue', department: 'Revenue Department', dataScope: 'RoR, Pahani and survey-number references', status: 'Not connected' },
+  { id: 'municipal-gis', department: 'Municipal GIS / Urban Local Bodies', dataScope: 'Ward, zoning, road and building layers', status: 'Not connected' },
+  { id: 'ground-truth', department: 'Ground Truth & Survey Teams', dataScope: 'Field tasks, measurements and evidence', status: 'Not connected' },
+  { id: 'gnss-cors', department: 'GNSS / CORS Services', dataScope: 'RINEX, NMEA and survey control observations', status: 'Not connected' },
+  { id: 'drone-imagery', department: 'Drone & Remote Sensing', dataScope: 'Orthomosaics, DSM/DTM and imagery products', status: 'Not connected' },
+  { id: 'utilities', department: 'Utilities & Infrastructure', dataScope: 'Water, power, sewer and network features', status: 'Not connected' },
+]
+
+export type HarmonizationRunStatus = 'Published' | 'In review' | 'Superseded'
+
+export interface HarmonizationRun {
+  id: string
+  outputId: string
+  outputName: string
+  comparisonConflictId: string
+  outputVersion: string
+  createdAt: string
+  status: HarmonizationRunStatus
+  runBy: string
+  modelVersion: string
+  inputVersions: string[]
+  changedFeatures: number
+  confidence: number
+  uncertaintyMeters: number
+  summary: string
+}
+
+export const sampleHarmonizationRuns: HarmonizationRun[] = [
+  { id: 'harm-014', outputId: 'tirupati-cadastre', outputName: 'Tirupati Harmonized Cadastral Output', comparisonConflictId: 'TPT-00128', outputVersion: '1.0', createdAt: '2026-09-18 10:30', status: 'Superseded', runBy: 'GeoAI Pipeline', modelVersion: 'spatial-match 0.8.2', inputVersions: ['Cadastral baseline 2026-09-02', 'Revenue Pahani batch 2026-09-14', 'Drone survey 2026-09-16'], changedFeatures: 126, confidence: 84, uncertaintyMeters: 0.42, summary: 'Initial conflation output. Low-confidence boundaries routed to review.' },
+  { id: 'harm-018', outputId: 'tirupati-cadastre', outputName: 'Tirupati Harmonized Cadastral Output', comparisonConflictId: 'TPT-00128', outputVersion: '1.1', createdAt: '2026-09-22 15:45', status: 'Published', runBy: 'GeoAI Pipeline', modelVersion: 'spatial-match 0.9.0', inputVersions: ['Cadastral baseline 2026-09-18', 'Revenue Pahani batch 2026-09-20', 'GNSS control 2026-09-21'], changedFeatures: 42, confidence: 91, uncertaintyMeters: 0.28, summary: 'Reprocessed changed parcels with GNSS control and reviewed field evidence.' },
+  { id: 'harm-021', outputId: 'tirupati-cadastre', outputName: 'Tirupati Harmonized Cadastral Output', comparisonConflictId: 'TPT-00191', outputVersion: '1.2', createdAt: '2026-09-27 09:20', status: 'In review', runBy: 'GeoAI Pipeline', modelVersion: 'spatial-match 0.9.1', inputVersions: ['Cadastral baseline 2026-09-21', 'Revenue Pahani batch 2026-09-25', 'Drone survey 2026-09-26', 'GNSS control 2026-09-26'], changedFeatures: 18, confidence: 94, uncertaintyMeters: 0.19, summary: 'Incremental update detected 18 changed features; awaiting reviewer approval.' },
+  { id: 'harm-009', outputId: 'tirupati-buildings', outputName: 'Tirupati Building Footprint Output', comparisonConflictId: 'TPT-00231', outputVersion: '0.4', createdAt: '2026-09-24 12:05', status: 'Published', runBy: 'GeoAI Pipeline', modelVersion: 'footprint-extract 0.4.3', inputVersions: ['Orthomosaic 2026-09-16', 'Municipal building layer 2026-09-10'], changedFeatures: 312, confidence: 88, uncertaintyMeters: 0.35, summary: 'Published reviewed footprint extraction for the current urban survey area.' },
+]
+
 export const districtGeojson: FeatureCollection = {
   type: 'FeatureCollection',
   features: [
@@ -320,9 +363,9 @@ export const conflictGeojson: FeatureCollection = {
         uncertainty: 0.84,
         displacement: 1.84,
         areaDifference: 12.7,
-        sourceA: 'Drone Survey',
-        sourceB: 'GNSS / CORS Survey',
-        description: 'Boundary mismatch detected between drone-derived parcel edge and GNSS reference geometry.',
+        sourceA: 'Orthorectified Imagery (ORI)',
+        sourceB: 'Cadastral Database',
+        description: 'The ORI-derived parcel edge is offset from the current cadastral boundary.',
       },
       geometry: {
         type: 'Polygon',
@@ -347,9 +390,9 @@ export const conflictGeojson: FeatureCollection = {
         uncertainty: 0.63,
         displacement: 1.12,
         areaDifference: 9.1,
-        sourceA: 'Parcel Fabric',
-        sourceB: 'Drone Survey',
-        description: 'Cadastral geometry differs from drone boundary by a consistent offset.',
+        sourceA: 'Cadastral Database',
+        sourceB: 'Municipal Utility Network',
+        description: 'A municipal utility corridor crosses the parcel boundary and requires jurisdictional review.',
       },
       geometry: {
         type: 'Polygon',
@@ -366,17 +409,17 @@ export const conflictGeojson: FeatureCollection = {
       type: 'Feature',
       properties: {
         id: 'TPT-00231',
-        title: 'Attribute mismatch',
-        type: 'Attribute conflict',
+        title: 'Utility corridor overlap',
+        type: 'Jurisdictional overlap',
         severity: 'Low',
         status: 'Requires review',
         confidence: 81,
         uncertainty: 0.51,
         displacement: 0.65,
         areaDifference: 3.8,
-        sourceA: 'Municipal GIS',
-        sourceB: 'Revenue records',
-        description: 'Owner name and parcel classification differ across source systems.',
+        sourceA: 'Revenue Land Records',
+        sourceB: 'Municipal GIS',
+        description: 'Parcel use classification and recorded land attributes disagree between Revenue and Municipal GIS.',
       },
       geometry: {
         type: 'Polygon',
@@ -405,9 +448,9 @@ export const conflictRecords: ConflictRecord[] = [
     areaDifference: 12.7,
     district: 'Tirupati District',
     mandal: 'Tirupati Urban',
-    sourceA: 'Drone Survey',
-    sourceB: 'GNSS / CORS Survey',
-    description: 'Boundary mismatch detected between drone-derived parcel edge and GNSS reference geometry.',
+    sourceA: 'Orthorectified Imagery (ORI)',
+    sourceB: 'Cadastral Database',
+    description: 'The ORI-derived parcel edge is offset from the current cadastral boundary.',
     bbox: [79.4275, 13.6740, 79.4320, 13.6788],
     geometry: conflictGeometryA,
     sourceGeometry: conflictGeometryB,
@@ -426,9 +469,9 @@ export const conflictRecords: ConflictRecord[] = [
     areaDifference: 9.1,
     district: 'Tirupati District',
     mandal: 'Chandragiri',
-    sourceA: 'Parcel Fabric',
-    sourceB: 'Drone Survey',
-    description: 'Cadastral geometry differs from drone boundary by a consistent offset.',
+    sourceA: 'Cadastral Database',
+    sourceB: 'Municipal Utility Network',
+    description: 'A municipal utility corridor crosses the parcel boundary and requires jurisdictional review.',
     bbox: [79.4538, 13.6884, 79.4576, 13.6922],
     geometry: conflictGeometryC,
     sourceGeometry: conflictGeometryB,
@@ -437,8 +480,8 @@ export const conflictRecords: ConflictRecord[] = [
   },
   {
     id: 'TPT-00231',
-    title: 'Attribute mismatch',
-    type: 'Attribute conflict',
+    title: 'Utility corridor overlap',
+    type: 'Jurisdictional overlap',
     severity: 'Low',
     status: 'Requires review',
     confidence: 81,
@@ -447,9 +490,9 @@ export const conflictRecords: ConflictRecord[] = [
     areaDifference: 3.8,
     district: 'Tirupati District',
     mandal: 'Puttur',
-    sourceA: 'Municipal GIS',
-    sourceB: 'Revenue records',
-    description: 'Owner name and parcel classification differ across source systems.',
+    sourceA: 'Revenue Land Records',
+    sourceB: 'Municipal GIS',
+    description: 'Parcel use classification and recorded land attributes disagree between Revenue and Municipal GIS.',
     bbox: [79.4678, 13.6952, 79.4720, 13.6990],
     geometry: conflictGeometryD,
     sourceGeometry: conflictGeometryA,
