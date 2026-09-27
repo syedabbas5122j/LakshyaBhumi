@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.core.authentication import get_session
 from app.engine.review_queue import create_ground_truth_request, list_ground_truth_requests
+from app.services.field_submission_service import create_submission, list_submissions
 
 router = APIRouter(prefix="/ground-truth", tags=["ground-truth"])
 bearer_scheme = HTTPBearer(auto_error=False)
@@ -34,6 +35,14 @@ class GroundTruthRequestBody(BaseModel):
     note: str = Field(min_length=1, max_length=2000)
 
 
+class FieldSubmissionBody(BaseModel):
+    type: Literal["Survey", "Claim", "Objection"]
+    title: str = Field(min_length=2, max_length=160)
+    description: str = Field(min_length=2, max_length=4000)
+    area_name: str = Field(min_length=2, max_length=160)
+    attachment_name: str = Field(default="", max_length=240)
+
+
 def get_authenticated_user(
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer_scheme)],
 ) -> dict[str, str]:
@@ -60,3 +69,24 @@ def submit_ground_truth_request(
         user,
     )
     return {"request": request}
+
+
+@router.get("/submissions")
+def get_field_submissions(_user: Annotated[dict[str, str], Depends(get_authenticated_user)]) -> dict:
+    return {"submissions": list_submissions()}
+
+
+@router.post("/submissions", status_code=status.HTTP_201_CREATED)
+def submit_field_submission(
+    payload: FieldSubmissionBody,
+    user: Annotated[dict[str, str], Depends(get_authenticated_user)],
+) -> dict:
+    submission = create_submission(
+        payload.type,
+        payload.title.strip(),
+        payload.description.strip(),
+        payload.area_name.strip(),
+        user,
+        payload.attachment_name.strip(),
+    )
+    return {"submission": submission}

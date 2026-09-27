@@ -1,5 +1,6 @@
-from app.engine.matching import compute_similarity
+from app.engine.matching import compute_composite_score
 
 
-def test_compute_similarity_returns_value():
-    assert compute_similarity({"id": "a"}, {"id": "b"}) == 0.85
+def test_compute_composite_score_returns_value():
+    score = compute_composite_score(0.8, 0.0001, 10.0)
+    assert 0.0 <= score <= 1.0

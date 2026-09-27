@@ -1,0 +1,38 @@
+{
+  "run_id": "live-DEMO-CADASTRAL-DEMO-DRONE",
+  "started_by": "District Survey Officer",
+  "source_dataset": "Demo cadastral database",
+  "target_dataset": "Demo drone database",
+  "target_crs": "EPSG:4326",
+  "output_features": 4,
+  "mean_confidence": 0.7829,
+  "lineage_entries": 16,
+  "steps": {
+    "georeferencing": {
+      "features_transformed": 0
+    },
+    "matching": {
+      "matched": 2,
+      "candidates": 4
+    },
+    "topology": {
+      "fixes_applied": 8
+    },
+    "attributes": {
+      "mappings": 3
+    },
+    "conflicts": {
+      "total": 1,
+      "auto_resolved": 0
+    },
+    "confidence": {
+      "mean": 0.7829,
+      "scored": 4
+    },
+    "changes": {
+      "modified": 1,
+      "added": 1,
+      "removed": 0
+    }
+  }
+}

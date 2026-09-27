@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, s
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.core.authentication import get_session
+from app.services.integration_sync_service import list_sync_queue
 from app.services.upload_service import create_upload, list_uploads
 
 router = APIRouter(prefix="/ingestion", tags=["ingestion"])
@@ -68,6 +69,15 @@ def get_uploads(
     return {"uploads": list_uploads(scopes)}
 
 
+@router.get("/sync-queue")
+def get_sync_queue(
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer_scheme)],
+) -> dict:
+    user = _authenticated_user(credentials)
+    allowed_upload_ids = {item["id"] for item in list_uploads(list(ROLE_UPLOAD_SCOPES.get(user.get("role", ""), ())))}
+    return {"sync_queue": [item for item in list_sync_queue() if item.get("upload_id") in allowed_upload_ids]}
+
+
 @router.post("/upload", status_code=status.HTTP_201_CREATED)
 async def upload_dataset(
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer_scheme)],
@@ -84,8 +94,8 @@ async def upload_dataset(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Your role cannot upload data at this administrative level.")
 
     filename = Path(file.filename or "").name
-    if Path(filename).suffix.lower() not in {".geojson", ".json"}:
-        raise HTTPException(status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, detail="Upload a .geojson or GeoJSON .json file.")
+    if Path(filename).suffix.lower() not in {".geojson", ".json", ".tif", ".tiff"}:
+        raise HTTPException(status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, detail="Upload GeoJSON, JSON, COG, or GeoTIFF data.")
 
     contents = await file.read(MAX_UPLOAD_BYTES + 1)
     if len(contents) > MAX_UPLOAD_BYTES:

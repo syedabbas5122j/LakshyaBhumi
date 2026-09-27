@@ -1,0 +1,13 @@
+[
+  {
+    "run_id": "live-DEMO-CADASTRAL-DEMO-DRONE",
+    "source_dataset": "Demo cadastral database",
+    "target_dataset": "Demo drone database",
+    "started_by": "demo.district-survey-officer",
+    "started_role": "District Survey Officer",
+    "target_crs": "EPSG:4326",
+    "feature_count": 4,
+    "geojson_filename": "live-DEMO-CADASTRAL-DEMO-DRONE-harmonized.geojson",
+    "report_filename": "live-DEMO-CADASTRAL-DEMO-DRONE-pipeline-report.json"
+  }
+]
