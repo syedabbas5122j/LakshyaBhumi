@@ -1,14 +1,16 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import * as maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import './App.css'
 import LandingAuth from './components/LandingAuth'
 import RoleWorkspace, { getPortalProfile, type WorkspaceView } from './components/RoleWorkspace'
 import ConflictGeometryComparison from './components/ConflictGeometryComparison'
+import HarmonizationVisualization from './components/HarmonizationVisualization'
 import CitizenPortal from './pages/citizen/CitizenPortal'
 import UploadData from './pages/officer/UploadData'
 import { authApi } from './services/authApi'
-import { groundTruthApi } from './services/groundTruthApi'
+import { groundTruthApi, type FieldSubmission } from './services/groundTruthApi'
+import { integrationApi, type IntegrationAccessRequest } from './services/integrationApi'
 import type { Polygon } from 'geojson'
 
 const configureMapWorker = () => {
@@ -70,12 +72,12 @@ const attachmentList = [
 ]
 
 const riskTrend = [
-  { label: 'Jan', value: 22 },
-  { label: 'Feb', value: 31 },
-  { label: 'Mar', value: 26 },
-  { label: 'Apr', value: 41 },
-  { label: 'May', value: 38 },
-  { label: 'Jun', value: 55 },
+  { label: 'Jan', total: 22, unresolved: 14, highSeverity: 5 },
+  { label: 'Feb', total: 31, unresolved: 19, highSeverity: 7 },
+  { label: 'Mar', total: 26, unresolved: 15, highSeverity: 6 },
+  { label: 'Apr', total: 41, unresolved: 25, highSeverity: 11 },
+  { label: 'May', total: 38, unresolved: 20, highSeverity: 9 },
+  { label: 'Jun', total: 55, unresolved: 29, highSeverity: 14 },
 ]
 
 const sourceMix = [
@@ -242,6 +244,13 @@ function App() {
   const [groundTruthNote, setGroundTruthNote] = useState('Please verify the redrawn boundary against field measurements and source records.')
   const [groundTruthMessage, setGroundTruthMessage] = useState('')
   const [groundTruthBusy, setGroundTruthBusy] = useState(false)
+  const [fieldSubmissions, setFieldSubmissions] = useState<FieldSubmission[]>([])
+  const [submissionType, setSubmissionType] = useState<FieldSubmission['type']>('Survey')
+  const [submissionTitle, setSubmissionTitle] = useState('')
+  const [submissionDescription, setSubmissionDescription] = useState('')
+  const [submissionArea, setSubmissionArea] = useState('')
+  const [submissionMessage, setSubmissionMessage] = useState('')
+  const [submissionBusy, setSubmissionBusy] = useState(false)
   const [activeScale, setActiveScale] = useState<'District' | 'Mandal' | 'Conflict' | 'Feature'>('Conflict')
   const [selectedDistrict, setSelectedDistrict] = useState('Tirupati')
   const [selectedMandal, setSelectedMandal] = useState('All')
@@ -272,7 +281,7 @@ function App() {
   const [integrationContact, setIntegrationContact] = useState('')
   const [integrationNotes, setIntegrationNotes] = useState('')
   const [integrationRequestMessage, setIntegrationRequestMessage] = useState('')
-  const [integrationRequests, setIntegrationRequests] = useState<Array<{ department: string; method: string; contact: string; notes: string }>>([])
+  const [integrationRequests, setIntegrationRequests] = useState<IntegrationAccessRequest[]>([])
   const [outputFilter, setOutputFilter] = useState('All')
   const [runStatusFilter, setRunStatusFilter] = useState<'All' | 'Published' | 'In review' | 'Superseded'>('All')
   const [selectedRunId, setSelectedRunId] = useState('harm-014')
@@ -340,6 +349,28 @@ function App() {
     loadGeoOptions()
     loadDashboard()
   }, [])
+
+  useEffect(() => {
+    if (!activeUser) {
+      return
+    }
+    const loadFieldSubmissions = () => {
+      groundTruthApi.listSubmissions()
+        .then((result) => setFieldSubmissions(result.submissions))
+        .catch(() => undefined)
+    }
+    loadFieldSubmissions()
+    const interval = window.setInterval(loadFieldSubmissions, 5000)
+    return () => window.clearInterval(interval)
+  }, [activeUser])
+
+  useEffect(() => {
+    if (!activeUser) return
+    const loadIntegrationRequests = () => integrationApi.list().then((result) => setIntegrationRequests(result.requests)).catch(() => undefined)
+    loadIntegrationRequests()
+    const interval = window.setInterval(loadIntegrationRequests, 1000)
+    return () => window.clearInterval(interval)
+  }, [activeUser])
 
   const desaMandalOptions = useMemo(() => {
     const selectedDistrictKey = getDistrictKey(selectedDistrict)
@@ -608,8 +639,8 @@ function App() {
         type: 'fill',
         source: 'state',
         paint: {
-          'fill-color': '#dfe7f2',
-          'fill-opacity': 0.04,
+          'fill-color': '#f8fafc',
+          'fill-opacity': 0.01,
         },
       })
 
@@ -619,8 +650,8 @@ function App() {
         source: 'state',
         paint: {
           'line-color': '#0f172a',
-          'line-width': 3,
-          'line-opacity': 1,
+          'line-width': 3.5,
+          'line-opacity': 0.9,
         },
       })
 
@@ -629,8 +660,8 @@ function App() {
         type: 'fill',
         source: 'district',
         paint: {
-          'fill-color': '#7dd3a8',
-          'fill-opacity': 0.12,
+          'fill-color': '#0f766e',
+          'fill-opacity': 0.02,
         },
       })
 
@@ -639,8 +670,8 @@ function App() {
         type: 'line',
         source: 'district',
         paint: {
-          'line-color': '#116b4a',
-          'line-width': 2,
+          'line-color': '#0d9488',
+          'line-width': 2.5,
           'line-opacity': 0.95,
         },
       })
@@ -650,8 +681,8 @@ function App() {
         type: 'fill',
         source: 'mandals',
         paint: {
-          'fill-color': '#fbbf24',
-          'fill-opacity': 0.08,
+          'fill-color': '#d97706',
+          'fill-opacity': 0.02,
         },
       })
 
@@ -661,8 +692,9 @@ function App() {
         source: 'mandals',
         paint: {
           'line-color': '#b45309',
-          'line-width': 1.3,
-          'line-opacity': 0.95,
+          'line-width': 1.2,
+          'line-opacity': 0.8,
+          'line-dasharray': [2, 2],
         },
       })
 
@@ -679,8 +711,8 @@ function App() {
         type: 'fill',
         source: 'selected-mandal',
         paint: {
-          'fill-color': '#2563eb',
-          'fill-opacity': 0.55,
+          'fill-color': '#3b82f6',
+          'fill-opacity': 0.18,
         },
       })
 
@@ -689,8 +721,8 @@ function App() {
         type: 'line',
         source: 'selected-mandal',
         paint: {
-          'line-color': '#1e3a8a',
-          'line-width': 5,
+          'line-color': '#1d4ed8',
+          'line-width': 3.5,
           'line-opacity': 1,
         },
       })
@@ -1045,16 +1077,35 @@ function App() {
       <section className="dashboard-visualization">
         <div className="panel trend-panel">
           <div className="panel-header small-header">
-            <span>Conflict trend</span>
-            <button type="button">6M view</button>
+            <span>Conflict trend / six months</span>
+            <button type="button">Rolling view</button>
           </div>
-          <div className="trend-chart" aria-label="Conflict trend chart">
-            {riskTrend.map((point) => (
-              <div key={point.label} className="trend-column">
-                <span className="trend-bar" style={{ height: `${point.value}%` }} />
-                <small>{point.label}</small>
-              </div>
-            ))}
+          <div className="trend-summary">
+            <div><span>Peak total</span><strong>{Math.max(...riskTrend.map((point) => point.total))}</strong></div>
+            <div><span>Open in Jun</span><strong>{riskTrend[riskTrend.length - 1].unresolved}</strong></div>
+            <div><span>High severity</span><strong>{riskTrend[riskTrend.length - 1].highSeverity}</strong></div>
+          </div>
+          <div className="trend-chart trend-chart-line" aria-label="Conflict trend chart showing total, unresolved and high-severity cases">
+            <svg viewBox="0 0 620 300" role="img">
+              {[0, 1, 2, 3].map((lineIndex) => {
+                const y = 35 + lineIndex * 60
+                return <g key={lineIndex}><line x1="34" x2="606" y1={y} y2={y} className="trend-grid-line" /><text x="10" y={y + 5} className="trend-axis-label">{Math.round(Math.max(...riskTrend.map((point) => point.total)) - lineIndex * 18)}</text></g>
+              })}
+              <polyline className="trend-line total" points={riskTrend.map((point, index) => `${44 + index * 110},${265 - (point.total / 60) * 220}`).join(' ')} />
+              <polyline className="trend-line unresolved" points={riskTrend.map((point, index) => `${44 + index * 110},${265 - (point.unresolved / 60) * 220}`).join(' ')} />
+              <polyline className="trend-line severe" points={riskTrend.map((point, index) => `${44 + index * 110},${265 - (point.highSeverity / 60) * 220}`).join(' ')} />
+              {riskTrend.map((point, index) => <g key={point.label}>
+                <circle className="trend-point total" cx={44 + index * 110} cy={265 - (point.total / 60) * 220} r="8"><title>{point.label}: {point.total} total cases</title></circle>
+                <circle className="trend-point unresolved" cx={44 + index * 110} cy={265 - (point.unresolved / 60) * 220} r="7"><title>{point.label}: {point.unresolved} unresolved cases</title></circle>
+                <circle className="trend-point severe" cx={44 + index * 110} cy={265 - (point.highSeverity / 60) * 220} r="7"><title>{point.label}: {point.highSeverity} high-severity cases</title></circle>
+                <text x={44 + index * 110} y="292" textAnchor="middle" className="trend-axis-label">{point.label}</text>
+              </g>)}
+            </svg>
+          </div>
+          <div className="trend-legend">
+            <span><i className="trend-key total" /> Total cases</span>
+            <span><i className="trend-key unresolved" /> Unresolved</span>
+            <span><i className="trend-key severe" /> High severity</span>
           </div>
         </div>
 
@@ -1479,16 +1530,21 @@ function App() {
           <div><span className="eyebrow">ACCESS REQUEST</span><h3>Provide the approved connection method</h3></div>
           <p>Do not enter passwords, API keys, tokens, or database credentials here. An authorized administrator must exchange secrets through the department-approved secure channel.</p>
         </div>
-        <form className="integration-request-form" onSubmit={(event) => {
+        <form className="integration-request-form" onSubmit={async (event) => {
           event.preventDefault()
           const department = departmentIntegrations.find((item) => item.id === integrationDepartment)
-          setIntegrationRequests((requests) => [...requests, {
-            department: department?.department ?? integrationDepartment,
-            method: integrationMethod,
-            contact: integrationContact,
-            notes: integrationNotes,
-          }])
-          setIntegrationRequestMessage('Request recorded in this browser session. It has not been sent to an administrator or saved to the backend.')
+          try {
+            const result = await integrationApi.create({
+              department: department?.department ?? integrationDepartment,
+              method: integrationMethod,
+              contact: integrationContact,
+              notes: integrationNotes,
+            })
+            setIntegrationRequests((requests) => [result.request, ...requests])
+            setIntegrationRequestMessage(`${result.request.id} requested. Demo access will be approved automatically in 1 second.`)
+          } catch (error) {
+            setIntegrationRequestMessage(error instanceof Error ? error.message : 'Could not request integration access.')
+          }
         }}>
           <label className="filter-group"><span>Department system</span><select value={integrationDepartment} onChange={(event) => setIntegrationDepartment(event.target.value)}>{departmentIntegrations.map((entry) => <option key={entry.id} value={entry.id}>{entry.department}</option>)}</select></label>
           <label className="filter-group"><span>Available access method</span><select value={integrationMethod} onChange={(event) => setIntegrationMethod(event.target.value)}><option>Secure API</option><option>Managed SFTP / file exchange</option><option>Read-only database replica</option><option>Other approved method</option></select></label>
@@ -1497,10 +1553,39 @@ function App() {
           <button className="primary integration-submit" type="submit">Record access request</button>
         </form>
         {integrationRequestMessage && <p className="integration-request-message" role="status">{integrationRequestMessage}</p>}
-        {integrationRequests.length > 0 && <div className="integration-request-list"><strong>Session requests</strong>{integrationRequests.map((request, index) => <p key={`${request.department}-${index}`}>{request.department} · {request.method} · {request.contact}</p>)}</div>}
+        {integrationRequests.length > 0 && <div className="integration-request-list"><strong>Access requests</strong>{integrationRequests.map((request) => <p key={request.id}>{request.department} · {request.method} · {request.contact} · <b>{request.status}</b></p>)}</div>}
       </section>
     </>
   )
+
+  const renderHarmonizationView = () => {
+    const selectedRun = sampleHarmonizationRuns.find((run) => run.id === selectedRunId) ?? sampleHarmonizationRuns[0]
+    const latestPublishedRun = selectedRun
+      ? sampleHarmonizationRuns.find((run) => run.outputId === selectedRun.outputId && run.status === 'Published')
+      : undefined
+
+    return (
+      <>
+        <header className="topbar">
+          <div>
+            <div className="eyebrow">GEOAI PROCESSING WORKSPACE</div>
+            <h2>Run AI harmonization</h2>
+            <p className="view-intro">Select approved source data, run the seven-stage pipeline and inspect the output before it enters version history.</p>
+          </div>
+          <div className="topbar-actions"><span className="demo-history-tag">CONTROLLED PROCESSING</span></div>
+        </header>
+        <section className="version-history-notice">
+          <strong>Pipeline workspace</strong>
+          <span>Runs are limited to approved oversight roles. Uploaded datasets are used when available; otherwise the demo database data is used for visualization.</span>
+        </section>
+        {selectedRun && <HarmonizationVisualization
+          run={selectedRun}
+          latestPublishedRun={latestPublishedRun}
+          canRun
+        />}
+      </>
+    )
+  }
 
   const renderVersionHistoryView = () => {
     const filteredRuns = sampleHarmonizationRuns.filter((run) =>
@@ -1508,8 +1593,10 @@ function App() {
       && (runStatusFilter === 'All' || run.status === runStatusFilter),
     )
     const selectedRun = filteredRuns.find((run) => run.id === selectedRunId) ?? filteredRuns[0]
-    const latestPublishedRun = selectedRun
-      ? sampleHarmonizationRuns.find((run) => run.outputId === selectedRun.outputId && run.status === 'Published')
+    const comparisonRun = selectedRun
+      ? sampleHarmonizationRuns
+        .filter((run) => run.outputId === selectedRun.outputId && run.id !== selectedRun.id)
+        .sort((left, right) => right.createdAt.localeCompare(left.createdAt))[0]
       : undefined
 
     return (
@@ -1564,9 +1651,7 @@ function App() {
                     <td className="version-summary"><strong>{run.modelVersion}</strong><small>{run.confidence}% confidence · ±{run.uncertaintyMeters} m</small></td>
                     <td><button type="button" className="version-compare-button" onClick={() => {
                       setSelectedRunId(run.id)
-                      setSelectedConflictId(run.comparisonConflictId)
-                      setActiveNav('Conflicts')
-                    }}>Compare geometry</button></td>
+                    }}>Compare version</button></td>
                   </tr>
                 )
               })}
@@ -1575,15 +1660,15 @@ function App() {
           </table>
         </section>
 
-        {selectedRun && latestPublishedRun && selectedRun.id !== latestPublishedRun.id && (
+        {selectedRun && comparisonRun && (
           <section className="version-comparison">
             <div className="version-comparison-heading">
               <div><span className="eyebrow">OUTPUT RUN COMPARISON</span><h3>{selectedRun.outputName}</h3></div>
-              <span>v{selectedRun.outputVersion} <b>→</b> v{latestPublishedRun.outputVersion} (latest published)</span>
+              <span>v{selectedRun.outputVersion} <b>↔</b> v{comparisonRun.outputVersion} (same output)</span>
             </div>
             <div className="version-comparison-grid">
-              <div><small>SELECTED RUN · {selectedRun.createdAt} · {selectedRun.status.toUpperCase()}</small><p>{selectedRun.summary}</p><p><strong>Inputs:</strong> {selectedRun.inputVersions.join(' · ')}</p></div>
-              <div><small>LATEST PUBLISHED OUTPUT · {latestPublishedRun.createdAt}</small><p>{latestPublishedRun.summary}</p><p><strong>Inputs:</strong> {latestPublishedRun.inputVersions.join(' · ')}</p></div>
+              <div><small>SELECTED VERSION · v{selectedRun.outputVersion} · {selectedRun.createdAt} · {selectedRun.status.toUpperCase()}</small><p>{selectedRun.summary}</p><p><strong>Inputs:</strong> {selectedRun.inputVersions.join(' · ')}</p></div>
+              <div><small>COMPARISON VERSION · v{comparisonRun.outputVersion} · {comparisonRun.createdAt} · {comparisonRun.status.toUpperCase()}</small><p>{comparisonRun.summary}</p><p><strong>Inputs:</strong> {comparisonRun.inputVersions.join(' · ')}</p></div>
             </div>
           </section>
         )}
@@ -1591,8 +1676,32 @@ function App() {
     )
   }
 
-  const renderGroundTruthView = () => (
-    <>
+  const renderGroundTruthView = () => {
+    const submitFieldEntry = async (event: FormEvent<HTMLFormElement>) => {
+      event.preventDefault()
+      setSubmissionBusy(true)
+      setSubmissionMessage('')
+      try {
+        const result = await groundTruthApi.submitFieldSubmission({
+          type: submissionType,
+          title: submissionTitle,
+          description: submissionDescription,
+          area_name: submissionArea,
+        })
+        setFieldSubmissions((current) => [result.submission, ...current])
+        setSubmissionTitle('')
+        setSubmissionDescription('')
+        setSubmissionArea('')
+        setSubmissionMessage(`${result.submission.type} ${result.submission.id} queued for verification.`)
+      } catch (error) {
+        setSubmissionMessage(error instanceof Error ? error.message : 'Could not submit field information.')
+      } finally {
+        setSubmissionBusy(false)
+      }
+    }
+
+    return (
+      <>
       <header className="topbar">
         <div>
           <div className="eyebrow">GROUND TRUTH</div>
@@ -1644,8 +1753,28 @@ function App() {
           </div>
         </div>
       </section>
+      <section className="field-submission-layout">
+        <div className="panel field-submission-panel">
+          <div className="panel-header small-header"><span>New field submission</span><span>Live intake</span></div>
+          <form className="field-submission-form" onSubmit={submitFieldEntry}>
+            <label><span>Submission type</span><select value={submissionType} onChange={(event) => setSubmissionType(event.target.value as FieldSubmission['type'])}><option>Survey</option><option>Claim</option><option>Objection</option></select></label>
+            <label><span>Area / parcel</span><input value={submissionArea} onChange={(event) => setSubmissionArea(event.target.value)} placeholder="e.g. Chandragiri / Survey 101" required /></label>
+            <label><span>Title</span><input value={submissionTitle} onChange={(event) => setSubmissionTitle(event.target.value)} placeholder="Short description" required /></label>
+            <label><span>Details</span><textarea value={submissionDescription} onChange={(event) => setSubmissionDescription(event.target.value)} placeholder="Describe the survey, claim, or objection" rows={4} required /></label>
+            <button className="primary" type="submit" disabled={submissionBusy}>{submissionBusy ? 'Submitting...' : `Submit ${submissionType}`}</button>
+            {submissionMessage && <p className="field-submission-message" role="status">{submissionMessage}</p>}
+          </form>
+        </div>
+        <div className="panel field-submission-panel">
+          <div className="panel-header small-header"><span>Live field queue</span><strong>{fieldSubmissions.length} entries</strong></div>
+          <div className="field-submission-list">
+            {fieldSubmissions.length ? fieldSubmissions.map((submission) => <div className="field-submission-item" key={submission.id}><div><strong>{submission.title}</strong><small>{submission.id} · {submission.area_name}</small></div><span className={`submission-type ${submission.type.toLowerCase()}`}>{submission.type}</span><em>{submission.status}</em></div>) : <p className="field-submission-empty">No surveys, claims, or objections submitted yet.</p>}
+          </div>
+        </div>
+      </section>
     </>
-  )
+    )
+  }
 
   const renderApiView = () => (
     <>
@@ -1724,6 +1853,8 @@ function App() {
         return <UploadData />
       case 'Version History':
         return renderVersionHistoryView()
+      case 'Harmonization':
+        return renderHarmonizationView()
       case 'Ground Truth':
         return renderGroundTruthView()
       case 'API':

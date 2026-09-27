@@ -341,12 +341,43 @@ export const gnssGeojson: FeatureCollection = {
           [79.4575, 13.6898],
           [79.4575, 13.6930],
           [79.4548, 13.6930],
-          [79.4548, 13.6898],
         ]],
       },
     },
   ],
 }
+
+export const utilityGeojson: FeatureCollection = {
+  type: 'FeatureCollection',
+  features: [
+    {
+      type: 'Feature',
+      properties: { feature_id: 'UTIL-W-101', name: 'Water Pipeline Alignment', type: 'water' },
+      geometry: {
+        type: 'LineString',
+        coordinates: [
+          [79.4260, 13.6735],
+          [79.4320, 13.6742],
+          [79.4325, 13.6785],
+          [79.4270, 13.6788],
+        ],
+      },
+    },
+    {
+      type: 'Feature',
+      properties: { feature_id: 'UTIL-E-102', name: 'Power Corridor ROW', type: 'electric' },
+      geometry: {
+        type: 'LineString',
+        coordinates: [
+          [79.4530, 13.6880],
+          [79.4585, 13.6890],
+          [79.4580, 13.6930],
+        ],
+      },
+    },
+  ],
+}
+
 
 export const conflictGeojson: FeatureCollection = {
   type: 'FeatureCollection',

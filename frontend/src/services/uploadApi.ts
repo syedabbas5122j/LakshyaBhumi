@@ -15,6 +15,8 @@ export type UploadedDataset = {
   crs: string
   status: string
   submitted_role: string
+  sync_status?: string
+  format?: string
 }
 
 const getToken = () => window.sessionStorage.getItem('bhusha_access_token')

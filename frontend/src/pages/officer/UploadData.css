@@ -1,7 +1,10 @@
 .upload-data-page { width: min(1180px, 100%); margin: 0 auto; display: flex; flex-direction: column; gap: 17px; }
 .upload-limit { padding: 7px 9px; border: 1px solid rgba(52, 140, 139, 0.24); color: #276e69; background: rgba(52, 140, 139, 0.07); font-size: 8px; font-weight: 700; letter-spacing: 0.8px; }
+.upload-capability { padding: 7px 9px; border: 1px solid rgba(47, 127, 86, 0.24); color: #27613d; background: rgba(47, 127, 86, 0.1); font-size: 8px; font-weight: 700; letter-spacing: 0.8px; }
 .upload-permissions { padding: 10px 12px; display: flex; align-items: center; flex-wrap: wrap; gap: 10px; border-left: 3px solid #348c8b; color: #52645d; background: rgba(52, 140, 139, 0.07); font-size: 9px; }
 .upload-permissions strong { color: #18332d; }
+.upload-capability-note { padding: 10px 12px; display: flex; align-items: center; flex-wrap: wrap; gap: 10px; border-left: 3px solid #2f7f56; color: #52645d; background: rgba(47, 127, 86, 0.08); font-size: 9px; }
+.upload-capability-note strong { color: #18332d; }
 .upload-form { padding: 15px; border: 1px solid rgba(24, 51, 45, 0.14); background: rgba(255, 255, 255, 0.28); }
 .upload-form-heading, .upload-history-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .upload-form-heading > span:last-child, .upload-history-header > span { color: #66776e; font-size: 8px; }

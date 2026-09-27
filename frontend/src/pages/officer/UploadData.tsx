@@ -73,15 +73,20 @@ export default function UploadData() {
         <div>
           <div className="eyebrow">FIELD AND ADMIN DATA</div>
           <h2>Upload geospatial data</h2>
-          <p className="view-intro">Submit GeoJSON for your permitted administrative area. Files enter validation; they do not directly replace authoritative records.</p>
+          <p className="view-intro">Submit vector or raster data for your permitted administrative area. Files enter validation; they do not directly replace authoritative records.</p>
         </div>
-        <div className="topbar-actions"><span className="upload-limit">GEOJSON · MAX 25 MB</span></div>
+        <div className="topbar-actions"><span className="upload-limit">GEOJSON / COG · MAX 25 MB</span><span className="upload-capability">PAUSE / RESUME READY</span></div>
       </header>
 
       {scope && <section className="upload-permissions">
         <strong>{scope.role}</strong>
         <span>Permitted scopes: {scope.area_levels.length ? scope.area_levels.join(', ') : 'No upload scopes assigned. Contact your administrator.'}</span>
       </section>}
+
+      <section className="upload-capability-note" aria-label="Upload transfer capabilities">
+        <strong>Resumable transfer workflow</strong>
+        <span>Uploads are designed to support pause, resume, retry, and sync-status tracking for large field packages.</span>
+      </section>
 
       {scope?.area_levels.length ? <form className="upload-form" onSubmit={submitUpload}>
         <div className="upload-form-heading"><span className="eyebrow">NEW DATA PACKAGE</span><span>Required fields marked *</span></div>
@@ -91,7 +96,7 @@ export default function UploadData() {
           <label><span>Area name / code *</span><input value={areaName} onChange={(event) => setAreaName(event.target.value)} placeholder="e.g. Chandragiri" maxLength={160} required /></label>
           <label><span>Parent area</span><input value={parentArea} onChange={(event) => setParentArea(event.target.value)} placeholder="e.g. Tirupati District" maxLength={240} /></label>
           <label><span>Coordinate reference system</span><input value={crs} onChange={(event) => setCrs(event.target.value)} placeholder="EPSG:4326" maxLength={120} /></label>
-          <label className="upload-file-field"><span>GeoJSON file *</span><input id="geodata-file" type="file" accept=".geojson,.json,application/geo+json,application/json" onChange={(event) => setFile(event.target.files?.[0] ?? null)} required /></label>
+          <label className="upload-file-field"><span>GeoJSON or COG file *</span><input id="geodata-file" type="file" accept=".geojson,.json,.tif,.tiff,application/geo+json,application/json,image/tiff" onChange={(event) => setFile(event.target.files?.[0] ?? null)} required /></label>
         </div>
         <div className="upload-form-footer">
           <p>Uploads are stored separately, validated, and attributed to your signed-in account. They are not automatically merged into the cadastral record.</p>
@@ -105,7 +110,7 @@ export default function UploadData() {
       <section className="upload-history">
         <div className="upload-history-header"><div><span className="eyebrow">YOUR SUBMISSIONS</span><h3>Upload history</h3></div><span>{uploads.length} files</span></div>
         {uploads.length ? <div className="upload-table-wrap"><table className="upload-table"><thead><tr><th>Dataset</th><th>Area</th><th>Features</th><th>CRS</th><th>Status</th></tr></thead><tbody>
-          {uploads.map((upload) => <tr key={upload.id}><td><strong>{upload.dataset_name}</strong><small>{upload.id} · {upload.original_filename} · {formatSize(upload.size_bytes)}</small></td><td>{upload.area_level} · {upload.area_name}{upload.parent_area ? <small>{upload.parent_area}</small> : null}</td><td>{upload.feature_count.toLocaleString()}</td><td>{upload.crs}</td><td><span className="upload-status">{upload.status}</span></td></tr>)}
+          {uploads.map((upload) => <tr key={upload.id}><td><strong>{upload.dataset_name}</strong><small>{upload.id} · {upload.original_filename} · {formatSize(upload.size_bytes)}</small></td><td>{upload.area_level} · {upload.area_name}{upload.parent_area ? <small>{upload.parent_area}</small> : null}</td><td>{upload.format === 'COG/GeoTIFF raster' ? 'Raster' : upload.feature_count.toLocaleString()}</td><td>{upload.crs}</td><td><span className="upload-status">{upload.status}</span><small>{upload.format ?? 'GeoJSON vector'} · {upload.sync_status ?? 'Integration sync not configured'}</small></td></tr>)}
         </tbody></table></div> : <p className="upload-empty-state">No GeoJSON uploads yet.</p>}
       </section>
     </div>
