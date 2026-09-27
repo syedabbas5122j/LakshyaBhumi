@@ -1,0 +1,29 @@
+# Node / frontend
+node_modules/
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Python virtual environment
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+
+# Large project data
+data/
+raw/
+processed/
+processed_clipped/
+
+# Logs
+npm-debug.log*
+
+# Local env files
+.env
+.env.*
