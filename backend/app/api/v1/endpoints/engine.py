@@ -15,14 +15,27 @@ from app.services.upload_service import read_upload
 router = APIRouter(prefix="/engine", tags=["engine"])
 bearer_scheme = HTTPBearer(auto_error=False)
 
-HARMONIZATION_ROLES = {
+HARMONIZATION_RUN_ROLES = {
+    "State GIS Coordinator",
+    "Director of Survey & Land Records",
+    "Chief Cartographer",
     "District Survey Officer",
     "District Land Records Officer",
-    "Commissioner of Land Administration",
-    "Director of Survey & Land Records",
-    "State GIS Coordinator",
-    "Chief Cartographer",
     "GIS Manager (Municipality)",
+}
+
+HARMONIZATION_VIEW_ROLES = HARMONIZATION_RUN_ROLES | {
+    "District Collector", "Joint Collector",
+    "Revenue Divisional Officer", "RDO",
+    "Tahsildar", "MRO",
+    "Municipal Commissioner",
+    "Chief Town Planner",
+    "Ground Truth Surveyor",
+    "Village Surveyor",
+    "Cartographic Reviewer", "Cartographic Reviewers",
+    "Bank Officer", "Mortgage Officer", "Bank / Mortgage Officer",
+    "Property Lawyer",
+    "Land Owner", "Buyer", "Citizen", "Bank / Mortgage Officers", "Property Lawyers", "Land Owners & Buyers"
 }
 
 
@@ -32,12 +45,19 @@ class HarmonizationRunRequest(BaseModel):
     target_crs: str = Field(default="EPSG:4326", min_length=1, max_length=40)
 
 
-def _authorized_user(credentials: HTTPAuthorizationCredentials | None) -> dict[str, str]:
+def _authorized_user(credentials: HTTPAuthorizationCredentials | None, action: str = "run") -> dict[str, str]:
     user = get_session(credentials.credentials) if credentials else None
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required.")
-    if user.get("role") not in HARMONIZATION_ROLES:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Your role cannot start harmonization runs.")
+    
+    user_role = user.get("role")
+    if action == "run":
+        if user_role not in HARMONIZATION_RUN_ROLES:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Your role cannot start harmonization runs.")
+    elif action == "view":
+        if user_role not in HARMONIZATION_VIEW_ROLES:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Your role cannot view harmonization versions.")
+            
     return user
 
 
@@ -172,7 +192,7 @@ def harmonize_datasets(
 def get_harmonization_runs(
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer_scheme)],
 ) -> dict[str, Any]:
-    _authorized_user(credentials)
+    _authorized_user(credentials, action="view")
     return {"runs": list_harmonization_runs()}
 
 
@@ -182,7 +202,7 @@ def download_harmonization_file(
     kind: str,
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer_scheme)],
 ) -> FileResponse:
-    _authorized_user(credentials)
+    _authorized_user(credentials, action="view")
     try:
         record, path = get_harmonization_file(run_id, kind)
     except FileNotFoundError as error:
