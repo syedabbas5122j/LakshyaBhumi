@@ -34,6 +34,7 @@ docs/*
 !docs/role-authority-todo.md
 !docs/administrator-runbook.md
 *.zip
+*.7z
 *.docx
 frontend/public/maplibre-gl-shared.mjs
 frontend/public/maplibre-gl-worker.mjs
