@@ -10,6 +10,8 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
+from app.core.managed_accounts import read_managed_accounts
+
 PASSWORD_ITERATIONS = 310_000
 SESSION_TTL_SECONDS = 8 * 60 * 60
 OTP_TTL_SECONDS = 5 * 60
@@ -120,6 +122,8 @@ def _load_accounts() -> dict[str, dict[str, Any]]:
         for identity, account in parsed.items()
         if isinstance(account, dict)
     }
+    for identity, account in read_managed_accounts().items():
+        configured.setdefault(identity, account)
     if demo_mode_enabled():
         for demo_account in _read_demo_accounts():
             identity = str(demo_account.get("username") or demo_account.get("contact") or "").strip().casefold()
@@ -160,7 +164,7 @@ def _issue_session(identity: str, account: dict[str, Any]) -> dict[str, Any]:
 def authenticate_officer(username: str, password: str, role: str) -> dict[str, Any] | None:
     identity = username.strip().casefold()
     account = _load_accounts().get(identity)
-    if not account or account.get("audience") != "officer":
+    if not account or account.get("audience") != "officer" or account.get("is_active", True) is False:
         return None
 
     password_hash = account.get("password_hash")
@@ -178,7 +182,7 @@ def request_citizen_otp(contact: str) -> str | None:
 
     identity = contact.strip().casefold()
     account = _load_accounts().get(identity)
-    if not account or account.get("audience") != "citizen":
+    if not account or account.get("audience") != "citizen" or account.get("is_active", True) is False:
         return None
 
     now = time.time()
@@ -196,7 +200,7 @@ def authenticate_citizen_otp(contact: str, code: str, role: str) -> dict[str, An
     identity = contact.strip().casefold()
     account = _load_accounts().get(identity)
     challenge = _otp_challenges.get(identity)
-    if not account or account.get("audience") != "citizen" or account.get("role") != role or not challenge:
+    if not account or account.get("audience") != "citizen" or account.get("is_active", True) is False or account.get("role") != role or not challenge:
         return None
 
     digest, expires_at, attempts, created_at = challenge
@@ -227,6 +231,12 @@ def get_session(token: str) -> dict[str, str] | None:
 
 def revoke_session(token: str) -> None:
     _sessions.pop(token, None)
+
+
+def revoke_account_sessions(account_id: str) -> None:
+    for token, (user, _) in list(_sessions.items()):
+        if user.get("id") == account_id:
+            _sessions.pop(token, None)
 
 
 if __name__ == "__main__":

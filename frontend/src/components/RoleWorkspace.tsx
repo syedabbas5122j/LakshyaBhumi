@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import './RoleWorkspace.css'
 
-export type WorkspaceView = 'Workspace' | 'Dashboard' | 'Map' | 'Conflicts' | 'Integrations' | 'Version History' | 'Harmonization' | 'Ground Truth' | 'Upload Data' | 'API'
+export type WorkspaceView = 'Workspace' | 'Dashboard' | 'Map' | 'Conflicts' | 'Integrations' | 'Version History' | 'Harmonization' | 'Ground Truth' | 'Upload Data' | 'API' | 'Administration' | 'Diagnostics' | 'Support'
 
 type PortalGroup = 'field' | 'village' | 'mandal' | 'district' | 'municipal' | 'state' | 'support'
 
@@ -120,12 +120,10 @@ const profiles: Record<PortalGroup, PortalProfile> = {
   },
   support: {
     label: 'Technical operations',
-    summary: 'Your workspace prioritizes service health, data processing and operational support.',
-    navigation: ['Workspace', 'API', 'Integrations', 'Version History', 'Dashboard'],
+    summary: 'Your workspace contains support requests and role-appropriate operational tools.',
+    navigation: ['Workspace', 'Support'],
     features: [
-      { eyebrow: '01 / SERVICE HEALTH', title: 'API and system status', description: 'Check service availability and endpoint health.', view: 'API' },
-      { eyebrow: '02 / CONNECTIONS', title: 'Integration setup', description: 'Track department access methods and connection readiness.', view: 'Integrations' },
-      { eyebrow: '03 / OPERATIONS', title: 'Activity overview', description: 'Review current platform metrics and operational status.', view: 'Dashboard' },
+      { eyebrow: '01 / SUPPORT', title: 'Support requests', description: 'Review service requests and route them to the right support team.', view: 'Support' },
     ],
   },
 }
@@ -228,7 +226,7 @@ const roleProfiles: Record<string, PortalProfile> = {
     { eyebrow: '01 / PROPERTY SEARCH', title: 'Parcel and building map', description: 'Inspect building footprints, parcel area and context.', view: 'Map' },
     { eyebrow: '02 / CORRECTIONS', title: 'Raise a correction', description: 'Identify issues for authorized review.', view: 'Conflicts' },
   ]),
-  'Commissioner of Land Administration': roleProfile('state', 'Start with state-wide cadastral and revenue integration summaries.', ['Workspace', 'Dashboard', 'Conflicts', 'Harmonization', 'Version History'], [
+  'Commissioner of Land Administration': roleProfile('state', 'Start with state-wide cadastral and revenue integration summaries.', ['Workspace', 'Dashboard', 'Conflicts', 'Version History'], [
     { eyebrow: '01 / STATE ROLLUP', title: 'Land administration overview', description: 'Review district trends, survey progress and legal conflicts.', view: 'Dashboard' },
     { eyebrow: '02 / ESCALATIONS', title: 'State conflict queue', description: 'Review escalated cases and their history.', view: 'Conflicts' },
   ]),
@@ -244,21 +242,22 @@ const roleProfiles: Record<string, PortalProfile> = {
     { eyebrow: '01 / MAP QA', title: 'State map workspace', description: 'Compare administrative, cadastral, municipal and imagery layers.', view: 'Map' },
     { eyebrow: '02 / SOURCE PRIORITY', title: 'Map versions', description: 'Review alignment, source priority and published versions.', view: 'Version History' },
   ]),
-  'System Administrator': roleProfile('support', 'Start with service health, access operations and platform configuration.', ['Workspace', 'API', 'Integrations', 'Dashboard'], [
-    { eyebrow: '01 / SERVICE HEALTH', title: 'System status', description: 'Check endpoint availability and platform metrics.', view: 'API' },
-    { eyebrow: '02 / ACCESS', title: 'Connected departments', description: 'Review integration access and operational readiness.', view: 'Integrations' },
+  'System Administrator': roleProfile('support', 'Manage account access, runtime controls, audit events and protected backups.', ['Workspace', 'Administration', 'Diagnostics', 'Support'], [
+    { eyebrow: '01 / ACCESS CONTROL', title: 'User and role administration', description: 'Create accounts, set jurisdiction and revoke access.', view: 'Administration' },
+    { eyebrow: '02 / PLATFORM CONTROL', title: 'Configuration and recovery', description: 'Change operational switches, inspect audit events and manage encrypted backups.', view: 'Administration' },
+    { eyebrow: '03 / OPERATIONS', title: 'Service diagnostics', description: 'Review operational availability and aggregate queue counts.', view: 'Diagnostics' },
+    { eyebrow: '04 / SUPPORT', title: 'Support queue', description: 'Review Help Desk requests and technical escalations.', view: 'Support' },
   ]),
   'Data Entry Operator': roleProfile('support', 'Start with upload registration, validation issues and approved data templates.', ['Workspace', 'Upload Data', 'Version History'], [
     { eyebrow: '01 / INGESTION', title: 'Registration queue', description: 'Enter dataset metadata and submit authorized packages.', view: 'Upload Data' },
     { eyebrow: '02 / VALIDATION', title: 'Correction history', description: 'Review validation outcomes and approved mappings.', view: 'Version History' },
   ]),
-  'IT Support Staff': roleProfile('support', 'Start with service health, upload diagnostics and access troubleshooting.', ['Workspace', 'API', 'Upload Data'], [
-    { eyebrow: '01 / SERVICE HEALTH', title: 'Endpoint status', description: 'Check availability and diagnose platform incidents.', view: 'API' },
-    { eyebrow: '02 / UPLOAD DIAGNOSTICS', title: 'Processing status', description: 'Inspect upload validation and processing results.', view: 'Upload Data' },
+  'IT Support Staff': roleProfile('support', 'Start with service health, aggregate processing diagnostics and technical support tickets.', ['Workspace', 'Diagnostics', 'Support'], [
+    { eyebrow: '01 / SERVICE HEALTH', title: 'Operational checks', description: 'Review API, storage and integration queue health without record contents.', view: 'Diagnostics' },
+    { eyebrow: '02 / TECHNICAL TICKETS', title: 'Upload and service issues', description: 'Work technical support requests without accessing parcel records.', view: 'Support' },
   ]),
-  'Help Desk Operator': roleProfile('support', 'Start with access issues, complaint status and escalation routing.', ['Workspace', 'Dashboard', 'Conflicts'], [
-    { eyebrow: '01 / USER SUPPORT', title: 'Issue overview', description: 'Review reported access and data issues by status.', view: 'Dashboard' },
-    { eyebrow: '02 / ESCALATION', title: 'Case routing', description: 'Track case status without unrestricted record access.', view: 'Conflicts' },
+  'Help Desk Operator': roleProfile('support', 'Triage account and service requests without access to parcel or legal case records.', ['Workspace', 'Support'], [
+    { eyebrow: '01 / REQUEST TRIAGE', title: 'Help Desk queue', description: 'Review short support summaries and route technical issues to IT.', view: 'Support' },
   ]),
 }
 
@@ -266,7 +265,7 @@ export function getPortalProfile(role: string): PortalProfile {
   if (roleProfiles[role]) {
     return roleProfiles[role]
   }
-  const profile = profiles[roleGroups[role] ?? 'district']
+  const profile = profiles[roleGroups[role] ?? 'support']
   if (roleGroups[role] === 'support' && (role === 'Data Entry Operator' || role === 'System Administrator')) {
     return { ...profile, navigation: [...profile.navigation, 'Upload Data'] }
   }

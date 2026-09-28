@@ -14,6 +14,7 @@ from app.core.authentication import (
     request_citizen_otp,
     revoke_session,
 )
+from app.core.runtime_configuration import get_runtime_config
 
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -57,6 +58,8 @@ def officer_login(payload: OfficerLoginRequest) -> dict:
 
 @router.post("/citizen/otp/request", status_code=status.HTTP_202_ACCEPTED)
 def citizen_otp_request(payload: CitizenOtpRequest) -> dict:
+    if not get_runtime_config()["citizen_login_enabled"]:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Citizen sign-in is temporarily disabled.")
     try:
         code = request_citizen_otp(payload.contact)
     except AuthenticationNotConfiguredError as error:
@@ -72,6 +75,8 @@ def citizen_otp_request(payload: CitizenOtpRequest) -> dict:
 
 @router.post("/citizen/otp/verify")
 def citizen_otp_verify(payload: CitizenOtpVerifyRequest) -> dict:
+    if not get_runtime_config()["citizen_login_enabled"]:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Citizen sign-in is temporarily disabled.")
     session = authenticate_citizen_otp(payload.contact, payload.code, payload.role)
     if not session:
         raise _unauthorized()

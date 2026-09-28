@@ -25,6 +25,15 @@ REVIEW_ROLE_STAGE = {
     "District Survey Officer": "district",
     "District Land Records Officer": "district",
 }
+FIELD_WORKER_ROLES = {
+    "Village Surveyor",
+    "Ground Truth Surveyor",
+    "Drone Pilot",
+    "GCP Marker",
+    "Field Data Collector",
+    "Mandal Surveyor",
+    "City Surveyor",
+}
 _submission_lock = threading.RLock()
 
 
@@ -93,6 +102,17 @@ def _is_submitter(submission: dict[str, Any], actor: dict[str, str]) -> bool:
     return submission.get("submitted_by", {}).get("id") == actor.get("id")
 
 
+def _is_field_assignee(submission: dict[str, Any], actor: dict[str, str]) -> bool:
+    return submission.get("field_assignee", {}).get("id") == actor.get("id")
+
+
+def field_worker_can_access_scope(worker: dict[str, str], scope: dict[str, str]) -> bool:
+    if worker.get("role") not in FIELD_WORKER_ROLES or worker.get("audience") != "officer":
+        return False
+    required_scope = ("district", "mandal", "village")
+    return all(not worker.get(key) or _same_value(worker.get(key), scope.get(key)) for key in required_scope)
+
+
 def _complete_targeted_harmonization(submission_id: str) -> None:
     with _submission_lock:
         submissions = _read_submissions()
@@ -122,6 +142,7 @@ def create_submission(
     submission_type_label: str | None = None,
     geometry: dict[str, Any] | None = None,
     conflict_id: str | None = None,
+    field_assignee: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     scope = {
         key: _clean_scope_value(value) or _clean_scope_value(submitted_by.get(key))
@@ -163,6 +184,11 @@ def create_submission(
     if conflict_id:
         submission["conflict_id"] = conflict_id
         submission["requested_by"] = _actor_summary(submitted_by)
+    if field_assignee:
+        if not field_worker_can_access_scope(field_assignee, scope):
+            raise PermissionError("The selected field worker is outside this submission scope.")
+        submission["field_assignee"] = _actor_summary(field_assignee)
+        submission["field_status"] = "Assigned"
     if submission_type == "Survey":
         submission["targeted_harmonization"] = {
             "status": "Queued",
@@ -182,7 +208,7 @@ def create_submission(
 def list_submissions(actor: dict[str, str]) -> list[dict[str, Any]]:
     stage = REVIEW_ROLE_STAGE.get(actor.get("role", ""))
     if actor.get("audience") != "officer" or not stage:
-        visible = [submission for submission in _read_submissions() if _is_submitter(submission, actor)]
+        visible = [submission for submission in _read_submissions() if _is_submitter(submission, actor) or _is_field_assignee(submission, actor)]
     else:
         visible = [
             submission for submission in _read_submissions()
@@ -193,9 +219,10 @@ def list_submissions(actor: dict[str, str]) -> list[dict[str, Any]]:
 
 def review_submission(
     submission_id: str,
-    action: Literal["claim", "release", "comment", "forward", "request_rework", "resubmit", "approve", "reject"],
+    action: Literal["claim", "release", "comment", "forward", "request_rework", "resubmit", "approve", "reject", "assign_field", "release_field", "field_start", "field_submit"],
     note: str,
     actor: dict[str, str],
+    field_assignee: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     with _submission_lock:
         submissions = _read_submissions()
@@ -214,7 +241,31 @@ def review_submission(
         if current_status == "Rework requested" and action not in {"resubmit", "comment"}:
             raise ValueError("The submitter must resubmit this case before review continues.")
 
-        if action == "resubmit":
+        if action in {"field_start", "field_submit"}:
+            if not _is_field_assignee(submission, actor):
+                raise PermissionError("Only the assigned field worker can update field status.")
+            if action == "field_start":
+                submission["field_status"] = "In progress"
+                note = note or "Field work started."
+            else:
+                submission["field_status"] = "Submitted"
+                note = note or "Field evidence submitted for review."
+        elif action in {"assign_field", "release_field"}:
+            if not is_reviewer or actor_stage != submission.get("review_stage"):
+                raise PermissionError("This submission is not in your review queue.")
+            if action == "assign_field":
+                if not field_assignee or not field_worker_can_access_scope(field_assignee, submission.get("scope", {})):
+                    raise PermissionError("The selected field worker is outside this submission scope.")
+                submission["field_assignee"] = _actor_summary(field_assignee)
+                submission["field_status"] = "Assigned"
+                note = note or f"Field work assigned to {field_assignee.get('role', 'worker')}."
+            else:
+                if not submission.get("field_assignee"):
+                    raise ValueError("This submission has no field assignment to release.")
+                submission["field_assignee"] = None
+                submission["field_status"] = "Unassigned"
+                note = note or "Field assignment released."
+        elif action == "resubmit":
             if not submitter or submission.get("status") != "Rework requested":
                 raise PermissionError("Only the submitter can resubmit a case returned for rework.")
             if len(note) < 2:

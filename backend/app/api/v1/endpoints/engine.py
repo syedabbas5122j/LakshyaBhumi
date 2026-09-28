@@ -7,6 +7,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
 from app.core.authentication import get_session
+from app.core.runtime_configuration import get_runtime_config
 from app.engine.pipeline import run_pipeline
 from app.engine.schemas import GeoFeature, HarmonizationRequest, SourcePriority
 from app.services.harmonization_service import get_harmonization_file, list_harmonization_runs, persist_harmonization_run
@@ -103,6 +104,8 @@ def harmonize_datasets(
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer_scheme)],
 ) -> dict[str, Any]:
     user = _authorized_user(credentials)
+    if not get_runtime_config()["harmonization_enabled"]:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Harmonization is temporarily disabled.")
     if bool(request.source_upload_id) != bool(request.target_upload_id):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Choose both a source and target dataset, or use demo data.")
     if request.source_upload_id == request.target_upload_id and request.source_upload_id:

@@ -21,6 +21,8 @@ raw/
 processed/
 processed_clipped/
 backend/uploaded-data/
+backend/admin-data/
+backend/backups/
 
 # Logs
 npm-debug.log*
@@ -28,6 +30,9 @@ npm-debug.log*
 # Exclude non-source project artifacts
 docs/*
 !docs/user-entry-points.md
+!docs/role-authority-matrix.md
+!docs/role-authority-todo.md
+!docs/administrator-runbook.md
 *.zip
 *.docx
 frontend/public/maplibre-gl-shared.mjs

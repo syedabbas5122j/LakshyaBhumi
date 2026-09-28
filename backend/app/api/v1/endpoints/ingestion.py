@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, s
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.core.authentication import get_session
+from app.core.runtime_configuration import get_runtime_config
 from app.services.integration_sync_service import list_sync_queue
 from app.services.upload_service import create_upload, list_uploads
 
@@ -89,6 +90,8 @@ async def upload_dataset(
     crs: str = Form(default="", max_length=120),
 ) -> dict:
     user = _authenticated_user(credentials)
+    if not get_runtime_config()["uploads_enabled"]:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Uploads are temporarily disabled.")
     allowed_scopes = ROLE_UPLOAD_SCOPES.get(user.get("role", ""), ())
     if area_level not in allowed_scopes:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Your role cannot upload data at this administrative level.")

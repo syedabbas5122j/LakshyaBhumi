@@ -24,6 +24,8 @@ export type FieldSubmission = {
   scope?: { district: string; mandal: string; village: string }
   submitted_by?: { id: string; role: string; audience: 'officer' | 'citizen' }
   assigned_to?: { id: string; role: string; audience: 'officer' | 'citizen' } | null
+  field_assignee?: { id: string; role: string; audience: 'officer' | 'citizen' } | null
+  field_status?: 'Unassigned' | 'Assigned' | 'In progress' | 'Submitted'
   review_history?: Array<{
     action: string
     note: string
@@ -34,7 +36,7 @@ export type FieldSubmission = {
   updated_at?: string
 }
 
-export type ReviewAction = 'claim' | 'release' | 'comment' | 'forward' | 'request_rework' | 'resubmit' | 'approve' | 'reject'
+export type ReviewAction = 'claim' | 'release' | 'comment' | 'forward' | 'request_rework' | 'resubmit' | 'approve' | 'reject' | 'assign_field' | 'release_field' | 'field_start' | 'field_submit'
 
 const authenticatedFetch = async (path: string, init?: RequestInit) => {
   const token = window.sessionStorage.getItem('bhusha_access_token')
@@ -72,9 +74,10 @@ export const groundTruthApi = {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   }) as Promise<{ submission: FieldSubmission }>,
-  reviewSubmission: async (submissionId: string, action: ReviewAction, note = '') => authenticatedFetch(`/api/v1/ground-truth/submissions/${encodeURIComponent(submissionId)}/review`, {
+  fieldWorkers: async () => authenticatedFetch('/api/v1/ground-truth/field-workers') as Promise<{ workers: Array<{ id: string; role: string; audience: 'officer'; district?: string; mandal?: string; village?: string }> }>,
+  reviewSubmission: async (submissionId: string, action: ReviewAction, note = '', assigneeId = '') => authenticatedFetch(`/api/v1/ground-truth/submissions/${encodeURIComponent(submissionId)}/review`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action, note }),
+    body: JSON.stringify({ action, note, assignee_id: assigneeId }),
   }) as Promise<{ submission: FieldSubmission }>,
 }

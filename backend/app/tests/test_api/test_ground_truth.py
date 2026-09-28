@@ -208,6 +208,55 @@ def test_submission_without_complete_geographic_scope_is_rejected():
     assert response.status_code == 422
 
 
+def test_reviewer_can_assign_scoped_field_worker_and_worker_updates_status(monkeypatch):
+    monkeypatch.setattr(authentication, "_load_accounts", lambda: {
+        "worker@example.test": {
+            "id": "worker-1", "audience": "officer", "role": "Village Surveyor",
+            "district": "Tirupati District", "mandal": "Tirupati Urban", "village": "Tirupati Urban",
+        },
+    })
+    payload = {
+        "type": "Survey", "title": "Assigned field check", "description": "Verify the eastern boundary.",
+        "area_name": "Survey 808", "district": "Tirupati District", "mandal": "Tirupati Urban", "village": "Tirupati Urban",
+    }
+    with _authenticated_client() as field_client:
+        created = field_client.post("/api/v1/ground-truth/submissions", json=payload).json()["submission"]
+        reviewer = _authenticated_client(
+            "Village Administrative Officer", "assigning-reviewer",
+            district="Tirupati District", mandal="Tirupati Urban", village="Tirupati Urban",
+        )
+        worker = _authenticated_client("Village Surveyor", "worker-1", district="Tirupati District", mandal="Tirupati Urban", village="Tirupati Urban")
+        assignment = reviewer.post(f"/api/v1/ground-truth/submissions/{created['id']}/review", json={"action": "assign_field", "assignee_id": "worker-1"})
+        visible = worker.get("/api/v1/ground-truth/submissions")
+        started = worker.post(f"/api/v1/ground-truth/submissions/{created['id']}/review", json={"action": "field_start"})
+        submitted = worker.post(f"/api/v1/ground-truth/submissions/{created['id']}/review", json={"action": "field_submit"})
+
+    assert assignment.status_code == 200
+    assert assignment.json()["submission"]["field_status"] == "Assigned"
+    assert len(visible.json()["submissions"]) == 1
+    assert started.json()["submission"]["field_status"] == "In progress"
+    assert submitted.json()["submission"]["field_status"] == "Submitted"
+
+
+def test_reviewer_cannot_assign_out_of_scope_field_worker(monkeypatch):
+    monkeypatch.setattr(authentication, "_load_accounts", lambda: {
+        "worker@example.test": {
+            "id": "worker-2", "audience": "officer", "role": "Village Surveyor",
+            "district": "Tirupati District", "mandal": "Chandragiri", "village": "Chandragiri",
+        },
+    })
+    payload = {
+        "type": "Survey", "title": "Scoped field check", "description": "Verify the boundary.",
+        "area_name": "Survey 809", "district": "Tirupati District", "mandal": "Tirupati Urban", "village": "Tirupati Urban",
+    }
+    with _authenticated_client() as field_client:
+        created = field_client.post("/api/v1/ground-truth/submissions", json=payload).json()["submission"]
+        reviewer = _authenticated_client("Village Administrative Officer", "scope-reviewer", district="Tirupati District", mandal="Tirupati Urban", village="Tirupati Urban")
+        response = reviewer.post(f"/api/v1/ground-truth/submissions/{created['id']}/review", json={"action": "assign_field", "assignee_id": "worker-2"})
+
+    assert response.status_code == 403
+
+
 def test_ground_truth_request_rejects_open_polygon_ring():
     payload = {
         "conflict_id": "TPT-00128",

@@ -6,6 +6,8 @@ import LandingAuth from './components/LandingAuth'
 import RoleWorkspace, { getPortalProfile, type WorkspaceView } from './components/RoleWorkspace'
 import ConflictGeometryComparison from './components/ConflictGeometryComparison'
 import HarmonizationVisualization from './components/HarmonizationVisualization'
+import AdministrationConsole from './components/AdministrationConsole'
+import SupportDesk from './components/SupportDesk'
 import CitizenPortal from './pages/citizen/CitizenPortal'
 import UploadData from './pages/officer/UploadData'
 import { authApi } from './services/authApi'
@@ -255,6 +257,24 @@ const readStoredUser = (): ActivePortalUser | null => {
 
 function App() {
   const [activeUser, setActiveUser] = useState<ActivePortalUser | null>(() => readStoredUser())
+  
+  const isTechnicalRole = activeUser ? [
+    'State GIS Coordinator', 'Chief Cartographer', 'District Survey Officer', 
+    'District Land Records Officer', 'GIS Manager (Municipality)', 'Village Surveyor', 
+    'Ground Truth Surveyor', 'Drone Pilot', 'GCP Marker', 'Field Data Collector', 
+    'Mandal Surveyor', 'City Surveyor', 'Survey Inspector'
+  ].includes(activeUser.role) : true
+  
+  const canChangeDistrict = activeUser ? [
+    'Commissioner of Land Administration', 'Director of Survey & Land Records', 
+    'State GIS Coordinator', 'Chief Cartographer', 'System Administrator', 'IT Support Staff'
+  ].includes(activeUser.role) : true
+  
+  const canChangeMandal = canChangeDistrict || (activeUser ? [
+    'District Collector / District Magistrate', 'District Survey Officer', 
+    'District Land Records Officer'
+  ].includes(activeUser.role) : true)
+
   const [portalMode, setPortalMode] = useState<'landing' | 'officer-login' | 'citizen-login' | 'workspace'>(() => readStoredUser() ? 'workspace' : 'landing')
   const mapContainer = useRef<HTMLDivElement | null>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
@@ -264,6 +284,8 @@ function App() {
   const [groundTruthMessage, setGroundTruthMessage] = useState('')
   const [groundTruthBusy, setGroundTruthBusy] = useState(false)
   const [fieldSubmissions, setFieldSubmissions] = useState<FieldSubmission[]>([])
+  const [fieldWorkers, setFieldWorkers] = useState<Array<{ id: string; role: string; district?: string; mandal?: string; village?: string }>>([])
+  const [fieldAssignmentDrafts, setFieldAssignmentDrafts] = useState<Record<string, string>>({})
   const [submissionType, setSubmissionType] = useState<FieldSubmissionKind>('Survey')
   const [submissionTitle, setSubmissionTitle] = useState('')
   const [submissionDescription, setSubmissionDescription] = useState('')
@@ -278,8 +300,8 @@ function App() {
   const [submissionMessage, setSubmissionMessage] = useState('')
   const [submissionBusy, setSubmissionBusy] = useState(false)
   const [activeScale, setActiveScale] = useState<'District' | 'Mandal' | 'Conflict' | 'Feature'>('Conflict')
-  const [selectedDistrict, setSelectedDistrict] = useState('Tirupati')
-  const [selectedMandal, setSelectedMandal] = useState('All')
+  const [selectedDistrict, setSelectedDistrict] = useState(activeUser?.district ?? 'Tirupati')
+  const [selectedMandal, setSelectedMandal] = useState(activeUser?.mandal ?? 'All')
   const [districtOptions, setDistrictOptions] = useState<string[]>(['Tirupati'])
   const [districtFeatureCollection, setDistrictFeatureCollection] = useState(districtGeojson)
   const [mandalFeatureCollection, setMandalFeatureCollection] = useState(mandalGeojson)
@@ -288,10 +310,10 @@ function App() {
   const [layersVisible, setLayersVisible] = useState({
     districts: true,
     mandals: true,
-    clusters: true,
+    clusters: isTechnicalRole,
     parcels: true,
-    drone: true,
-    gnss: true,
+    drone: isTechnicalRole,
+    gnss: isTechnicalRole,
     conflicts: true,
   })
   const [apiSummary, setApiSummary] = useState({
@@ -386,6 +408,11 @@ function App() {
         .catch(() => undefined)
     }
     loadFieldSubmissions()
+    if (reviewerStageForRole[activeUser.role]) {
+      groundTruthApi.fieldWorkers().then((result) => setFieldWorkers(result.workers)).catch(() => setFieldWorkers([]))
+    } else {
+      setFieldWorkers([])
+    }
     const interval = window.setInterval(loadFieldSubmissions, 5000)
     return () => window.clearInterval(interval)
   }, [activeUser])
@@ -1076,7 +1103,7 @@ function App() {
       <section className="dashboard-toolbar filter-row">
         <div className="filter-group">
           <label>District</label>
-          <select value={selectedDistrict} onChange={(event) => {
+          <select value={selectedDistrict} disabled={!canChangeDistrict} onChange={(event) => {
             setSelectedDistrict(event.target.value)
             setSelectedMandal('All')
             setActiveScale('District')
@@ -1088,7 +1115,7 @@ function App() {
         </div>
         <div className="filter-group">
           <label>Mandal</label>
-          <select value={selectedMandal} onChange={(event) => {
+          <select value={selectedMandal} disabled={!canChangeMandal} onChange={(event) => {
             const nextValue = event.target.value
             setSelectedMandal(nextValue)
             setActiveScale(nextValue === 'All' ? 'District' : 'Mandal')
@@ -1350,7 +1377,7 @@ function App() {
           <div className="map-admin-selectors">
             <label className="map-select-wrap">
               <span>District</span>
-              <select value={selectedDistrict} onChange={(event) => {
+              <select value={selectedDistrict} disabled={!canChangeDistrict} onChange={(event) => {
                 setSelectedDistrict(event.target.value)
                 setSelectedMandal('All')
                 setActiveScale('District')
@@ -1362,7 +1389,7 @@ function App() {
             </label>
             <label className="map-select-wrap">
               <span>Mandal</span>
-              <select value={selectedMandal} onChange={(event) => {
+              <select value={selectedMandal} disabled={!canChangeMandal} onChange={(event) => {
                 const nextValue = event.target.value
                 setSelectedMandal(nextValue)
                 setActiveScale(nextValue === 'All' ? 'District' : 'Mandal')
@@ -1376,10 +1403,14 @@ function App() {
           <div className="layer-toggles">
             <label><input type="checkbox" checked={layersVisible.districts} onChange={() => setLayersVisible((prev) => ({ ...prev, districts: !prev.districts }))} /> District</label>
             <label><input type="checkbox" checked={layersVisible.mandals} onChange={() => setLayersVisible((prev) => ({ ...prev, mandals: !prev.mandals }))} /> Mandals</label>
-            <label><input type="checkbox" checked={layersVisible.clusters} onChange={() => setLayersVisible((prev) => ({ ...prev, clusters: !prev.clusters }))} /> Clusters</label>
+            {isTechnicalRole && (
+              <>
+                <label><input type="checkbox" checked={layersVisible.clusters} onChange={() => setLayersVisible((prev) => ({ ...prev, clusters: !prev.clusters }))} /> Clusters</label>
+                <label><input type="checkbox" checked={layersVisible.drone} onChange={() => setLayersVisible((prev) => ({ ...prev, drone: !prev.drone }))} /> Drone</label>
+                <label><input type="checkbox" checked={layersVisible.gnss} onChange={() => setLayersVisible((prev) => ({ ...prev, gnss: !prev.gnss }))} /> GNSS</label>
+              </>
+            )}
             <label><input type="checkbox" checked={layersVisible.parcels} onChange={() => setLayersVisible((prev) => ({ ...prev, parcels: !prev.parcels }))} /> Parcels</label>
-            <label><input type="checkbox" checked={layersVisible.drone} onChange={() => setLayersVisible((prev) => ({ ...prev, drone: !prev.drone }))} /> Drone</label>
-            <label><input type="checkbox" checked={layersVisible.gnss} onChange={() => setLayersVisible((prev) => ({ ...prev, gnss: !prev.gnss }))} /> GNSS</label>
             <label><input type="checkbox" checked={layersVisible.conflicts} onChange={() => setLayersVisible((prev) => ({ ...prev, conflicts: !prev.conflicts }))} /> Conflicts</label>
           </div>
         </div>
@@ -1711,11 +1742,11 @@ function App() {
   const renderGroundTruthView = () => {
     const currentReviewStage = activeUser ? reviewerStageForRole[activeUser.role] : undefined
 
-    const updateReview = async (submission: FieldSubmission, action: Parameters<typeof groundTruthApi.reviewSubmission>[1]) => {
+    const updateReview = async (submission: FieldSubmission, action: Parameters<typeof groundTruthApi.reviewSubmission>[1], assigneeId = '') => {
       setReviewBusyId(submission.id)
       setReviewMessage('')
       try {
-        const result = await groundTruthApi.reviewSubmission(submission.id, action, reviewNoteDrafts[submission.id] ?? '')
+        const result = await groundTruthApi.reviewSubmission(submission.id, action, reviewNoteDrafts[submission.id] ?? '', assigneeId)
         setFieldSubmissions((current) => current.map((item) => item.id === submission.id ? result.submission : item))
         if (action !== 'comment') {
           setReviewNoteDrafts((current) => ({ ...current, [submission.id]: '' }))
@@ -1727,6 +1758,17 @@ function App() {
         setReviewBusyId(null)
       }
     }
+
+    const statusCounts = fieldSubmissions.reduce<Record<string, number>>((counts, submission) => {
+      const status = submission.status || 'Unknown'
+      counts[status] = (counts[status] ?? 0) + 1
+      return counts
+    }, {})
+    const completedCount = (statusCounts.Approved ?? 0) + (statusCounts.Rejected ?? 0)
+    const assignedCount = fieldSubmissions.filter((submission) => submission.field_assignee).length
+    const fieldInProgressCount = fieldSubmissions.filter((submission) => submission.field_status === 'In progress').length
+    const fieldSubmittedCount = fieldSubmissions.filter((submission) => submission.field_status === 'Submitted').length
+    const progressPercent = fieldSubmissions.length ? Math.round((completedCount / fieldSubmissions.length) * 100) : 0
 
     const submitFieldEntry = async (event: FormEvent<HTMLFormElement>) => {
       event.preventDefault()
@@ -1808,6 +1850,19 @@ function App() {
           </div>
         </div>
       </section>
+      <section className="ground-truth-status-panel" aria-label="Ground truth assignment and status summary">
+        <div className="ground-truth-status-heading"><div><span>FIELD WORKFLOW STATUS</span><strong>{progressPercent}% complete</strong></div><small>{fieldSubmissions.length} total submissions · {assignedCount} assigned to field workers</small></div>
+        <div className="ground-truth-progress"><span style={{ width: `${progressPercent}%` }} /></div>
+        <div className="ground-truth-status-grid">
+          <div><strong>{statusCounts['Pending village review'] ?? 0}</strong><small>Village queue</small></div>
+          <div><strong>{statusCounts['Pending mandal review'] ?? 0}</strong><small>Mandal queue</small></div>
+          <div><strong>{statusCounts['Pending district review'] ?? 0}</strong><small>District queue</small></div>
+          <div><strong>{statusCounts['Rework requested'] ?? 0}</strong><small>Rework requested</small></div>
+          <div><strong>{statusCounts.Approved ?? 0}</strong><small>Approved</small></div>
+          <div><strong>{fieldInProgressCount}</strong><small>Field in progress</small></div>
+          <div><strong>{fieldSubmittedCount}</strong><small>Field evidence submitted</small></div>
+        </div>
+      </section>
       <section className="field-submission-layout">
         <div className="panel field-submission-panel">
           <div className="panel-header small-header"><span>New field submission</span><span>Village → Mandal → District</span></div>
@@ -1826,11 +1881,12 @@ function App() {
           </form>
         </div>
         <div className="panel field-submission-panel">
-          <div className="panel-header small-header"><span>{currentReviewStage ? `${currentReviewStage} review queue` : 'My submissions'}</span><strong>{fieldSubmissions.length} cases</strong></div>
+          <div className="panel-header small-header"><span>{currentReviewStage ? `${currentReviewStage} review queue` : activeUser?.role && ['Village Surveyor', 'Ground Truth Surveyor', 'Drone Pilot', 'GCP Marker', 'Field Data Collector', 'Mandal Surveyor', 'City Surveyor'].includes(activeUser.role) ? 'My field assignments' : 'My submissions'}</span><strong>{fieldSubmissions.length} cases</strong></div>
           {reviewMessage && <p className="field-submission-message" role="status">{reviewMessage}</p>}
           <div className="field-submission-list">
             {fieldSubmissions.length ? fieldSubmissions.map((submission) => {
               const assignedToCurrentUser = submission.assigned_to?.id === activeUser?.id
+              const fieldAssignedToCurrentUser = submission.field_assignee?.id === activeUser?.id
               const canReview = Boolean(currentReviewStage && submission.review_stage === currentReviewStage)
               const isSubmitter = submission.submitted_by?.id === activeUser?.id
               const note = reviewNoteDrafts[submission.id] ?? ''
@@ -1842,9 +1898,13 @@ function App() {
                   <em>{submission.status} · {submission.review_stage === 'completed' ? 'Workflow complete' : `At ${submission.review_stage ?? 'unassigned'} stage`}</em>
                   <small>Submitted by {submission.submitted_by?.role ?? 'Unknown'} · {new Date(submission.created_at).toLocaleString()}</small>
                   {submission.assigned_to && <small>Claimed by {submission.assigned_to.role}</small>}
+                  <div className="field-assignment-status"><span>FIELD STATUS</span><strong>{submission.field_status ?? (submission.field_assignee ? 'Assigned' : 'Unassigned')}</strong>{submission.field_assignee && <small>Assigned to {submission.field_assignee.role}</small>}</div>
+                  {fieldAssignedToCurrentUser && <div className="review-case-actions field-worker-actions"><button type="button" className="secondary" disabled={reviewBusyId === submission.id || submission.field_status === 'In progress' || submission.field_status === 'Submitted'} onClick={() => updateReview(submission, 'field_start')}>Start field work</button><button type="button" className="primary" disabled={reviewBusyId === submission.id || submission.field_status !== 'In progress'} onClick={() => updateReview(submission, 'field_submit')}>Submit field evidence</button></div>}
                   {canReview && (assignedToCurrentUser || !submission.assigned_to) && submission.status !== 'Approved' && submission.status !== 'Rejected' && submission.status !== 'Rework requested' && (
                     <div className="review-case-actions">
                       {!submission.assigned_to && <button type="button" className="secondary" disabled={reviewBusyId === submission.id} onClick={() => updateReview(submission, 'claim')}>Claim case</button>}
+                      {!submission.field_assignee && <label><span>Assign field worker</span><select value={fieldAssignmentDrafts[submission.id] ?? ''} onChange={(event) => setFieldAssignmentDrafts((current) => ({ ...current, [submission.id]: event.target.value }))}><option value="">Choose worker</option>{fieldWorkers.map((worker) => <option key={worker.id} value={worker.id}>{worker.role}{worker.village ? ` · ${worker.village}` : ''}</option>)}</select><button type="button" className="secondary" disabled={reviewBusyId === submission.id || !fieldAssignmentDrafts[submission.id]} onClick={() => updateReview(submission, 'assign_field', fieldAssignmentDrafts[submission.id])}>Assign</button></label>}
+                      {submission.field_assignee && <button type="button" className="secondary" disabled={reviewBusyId === submission.id} onClick={() => updateReview(submission, 'release_field')}>Release field assignment</button>}
                       {assignedToCurrentUser && <>
                         <button type="button" className="secondary" disabled={reviewBusyId === submission.id} onClick={() => updateReview(submission, 'release')}>Release case</button>
                         <label><span>Review note</span><textarea rows={2} value={note} onChange={(event) => setReviewNoteDrafts((current) => ({ ...current, [submission.id]: event.target.value }))} placeholder="Record review findings or decision rationale" /></label>
@@ -1954,6 +2014,16 @@ function App() {
         return renderGroundTruthView()
       case 'API':
         return renderApiView()
+      case 'Administration':
+        return activeUser?.role === 'System Administrator'
+          ? <AdministrationConsole onSignOut={signOut} />
+          : <RoleWorkspace role={activeUser?.role ?? ''} onNavigate={setActiveNav} onSignOut={signOut} />
+      case 'Diagnostics':
+        return activeUser && ['IT Support Staff', 'System Administrator'].includes(activeUser.role)
+          ? <SupportDesk role={activeUser.role} />
+          : <RoleWorkspace role={activeUser?.role ?? ''} onNavigate={setActiveNav} onSignOut={signOut} />
+      case 'Support':
+        return activeUser ? <SupportDesk role={activeUser.role} /> : renderDashboardView()
       default:
         return renderDashboardView()
     }
