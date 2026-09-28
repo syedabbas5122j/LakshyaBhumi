@@ -143,11 +143,11 @@ const roleProfile = (
 })
 
 const roleProfiles: Record<string, PortalProfile> = {
-  'Village Surveyor': roleProfile('field', 'Start with assigned parcel visits, boundary measurements and evidence submissions.', ['Workspace', 'Ground Truth', 'Map'], [
+  'Village Surveyor': roleProfile('field', 'Start with assigned parcel visits, boundary measurements and evidence submissions.', ['Workspace', 'Ground Truth', 'Map', 'Version History'], [
     { eyebrow: '01 / ASSIGNED WORK', title: 'Parcel survey tasks', description: 'Open assigned parcels, review due dates and record boundary measurements.', view: 'Ground Truth' },
     { eyebrow: '02 / FIELD CONTEXT', title: 'Parcel map', description: 'Navigate the assigned parcel and nearby administrative boundaries.', view: 'Map' },
   ]),
-  'Ground Truth Surveyor': roleProfile('field', 'Start with confidence-prioritized discrepancy work and evidence review.', ['Workspace', 'Ground Truth', 'Map', 'Upload Data'], [
+  'Ground Truth Surveyor': roleProfile('field', 'Start with confidence-prioritized discrepancy work and evidence review.', ['Workspace', 'Ground Truth', 'Map', 'Upload Data', 'Version History'], [
     { eyebrow: '01 / PRIORITY TASKS', title: 'Ground-truth queue', description: 'Work boundary discrepancies and record field observations.', view: 'Ground Truth' },
     { eyebrow: '02 / EVIDENCE', title: 'Submit field evidence', description: 'Send photos, observations and survey data for review.', view: 'Upload Data' },
   ]),
@@ -171,23 +171,23 @@ const roleProfiles: Record<string, PortalProfile> = {
     { eyebrow: '01 / URBAN INSPECTION', title: 'City parcel map', description: 'Inspect parcels alongside municipal layers and imagery.', view: 'Map' },
     { eyebrow: '02 / DATA HANDOFF', title: 'Submit city survey data', description: 'Upload authorized urban survey packages.', view: 'Upload Data' },
   ]),
-  'Village Revenue Officer (VRO)': roleProfile('village', 'Start with village parcel records, revenue links and cases needing local action.', ['Workspace', 'Map', 'Conflicts', 'Dashboard'], [
+  'Village Revenue Officer (VRO)': roleProfile('village', 'Start with village parcel records, revenue links and cases needing local action.', ['Workspace', 'Map', 'Conflicts', 'Ground Truth', 'Dashboard'], [
     { eyebrow: '01 / REVENUE REGISTER', title: 'Village parcel records', description: 'Inspect revenue and cadastral context for local parcels.', view: 'Map' },
     { eyebrow: '02 / LOCAL CASES', title: 'Ownership conflicts', description: 'Review record differences and forward unresolved cases.', view: 'Conflicts' },
   ]),
-  'Ward Secretary': roleProfile('village', 'Start with ward parcel lookup, complaints and municipal survey status.', ['Workspace', 'Map', 'Conflicts', 'Dashboard'], [
+  'Ward Secretary': roleProfile('village', 'Start with ward parcel lookup, complaints and municipal survey status.', ['Workspace', 'Map', 'Conflicts', 'Ground Truth', 'Dashboard'], [
     { eyebrow: '01 / WARD LOOKUP', title: 'Ward parcel map', description: 'Find parcels and inspect the municipal context.', view: 'Map' },
     { eyebrow: '02 / SERVICE CASES', title: 'Ward issues', description: 'Track boundary questions and requests needing routing.', view: 'Conflicts' },
   ]),
-  'Patwari / Lekhpal': roleProfile('village', 'Start with revenue-to-cadastral matching and boundary comparison.', ['Workspace', 'Map', 'Conflicts', 'Version History'], [
+  'Patwari / Lekhpal': roleProfile('village', 'Start with revenue-to-cadastral matching and boundary comparison.', ['Workspace', 'Map', 'Conflicts', 'Ground Truth', 'Version History'], [
     { eyebrow: '01 / RECORD MATCHING', title: 'Revenue parcel map', description: 'Compare survey-number and khata links with parcels.', view: 'Map' },
     { eyebrow: '02 / ATTRIBUTE REVIEW', title: 'Boundary conflicts', description: 'Inspect mismatches and prepare corrections for review.', view: 'Conflicts' },
   ]),
-  'Village Administrative Officer': roleProfile('village', 'Start with village rollups, missing records and unresolved field issues.', ['Workspace', 'Dashboard', 'Map', 'Conflicts'], [
+  'Village Administrative Officer': roleProfile('village', 'Start with village rollups, missing records and unresolved field issues.', ['Workspace', 'Dashboard', 'Map', 'Conflicts', 'Ground Truth'], [
     { eyebrow: '01 / VILLAGE ROLLUP', title: 'Village overview', description: 'Review parcel coverage and field progress.', view: 'Dashboard' },
     { eyebrow: '02 / RECORD GAPS', title: 'Open issues', description: 'Route missing or incomplete records for action.', view: 'Conflicts' },
   ]),
-  'Mandal Revenue Officer (MRO)': roleProfile('mandal', 'Start with mandal conflicts, assignments and resolution history.', ['Workspace', 'Conflicts', 'Dashboard', 'Version History'], [
+  'Mandal Revenue Officer (MRO)': roleProfile('mandal', 'Start with mandal conflicts, assignments and resolution history.', ['Workspace', 'Conflicts', 'Ground Truth', 'Dashboard', 'Version History'], [
     { eyebrow: '01 / DECISION QUEUE', title: 'Mandal conflict queue', description: 'Assign, escalate and track boundary and ownership cases.', view: 'Conflicts' },
     { eyebrow: '02 / MANDAL ROLLUP', title: 'Mandal progress', description: 'Review village status and unresolved trends.', view: 'Dashboard' },
   ]),
@@ -199,29 +199,30 @@ const roleProfiles: Record<string, PortalProfile> = {
     { eyebrow: '01 / QUALITY QUEUE', title: 'Evidence review', description: 'Check photos, GPS accuracy and parcel comparisons.', view: 'Ground Truth' },
     { eyebrow: '02 / REWORK', title: 'Incomplete submissions', description: 'Return field work or forward validated cases.', view: 'Conflicts' },
   ]),
-  'District Collector / District Magistrate': roleProfile('district', 'Start with district progress, escalations and administrative reports.', ['Workspace', 'Dashboard', 'Conflicts', 'Version History'], [
+  'District Collector / District Magistrate': roleProfile('district', 'Start with district progress, escalations and administrative reports.', ['Workspace', 'Dashboard', 'Conflicts', 'Ground Truth', 'Version History'], [
     { eyebrow: '01 / DISTRICT PICTURE', title: 'District progress', description: 'Review survey completion, SLA health and mandal rollups.', view: 'Dashboard' },
     { eyebrow: '02 / ESCALATIONS', title: 'Priority cases', description: 'Review unresolved conflicts requiring district attention.', view: 'Conflicts' },
   ]),
-  'District Survey Officer': roleProfile('district', 'Start with district data quality, integrations and low-confidence outputs.', ['Workspace', 'Dashboard', 'Conflicts', 'Integrations', 'Harmonization', 'Version History'], [
+  'District Survey Officer': roleProfile('district', 'Start with district data quality, integrations and low-confidence outputs.', ['Workspace', 'Dashboard', 'Conflicts', 'Ground Truth', 'Integrations', 'Harmonization', 'Version History'], [
     { eyebrow: '01 / QUALITY', title: 'Data quality dashboard', description: 'Compare confidence, uncertainty and coverage.', view: 'Dashboard' },
     { eyebrow: '02 / REVIEW QUEUE', title: 'Low-confidence conflicts', description: 'Prioritize high-risk cases for review.', view: 'Conflicts' },
   ]),
-  'District Land Records Officer': roleProfile('district', 'Start with the district cadastral catalog, lineage and authorized QA review.', ['Workspace', 'Map', 'Harmonization', 'Version History', 'Conflicts'], [
+  'District Land Records Officer': roleProfile('district', 'Start with the district cadastral catalog, lineage and authorized QA review.', ['Workspace', 'Map', 'Harmonization', 'Version History', 'Conflicts', 'Ground Truth'], [
     { eyebrow: '01 / CATALOG', title: 'Cadastral map', description: 'Inspect district parcels and revenue references.', view: 'Map' },
     { eyebrow: '02 / VERSION CONTROL', title: 'Dataset history', description: 'Review lineage, versions and QA status.', view: 'Version History' },
   ]),
-  'Municipal Commissioner': roleProfile('municipal', 'Start with municipality rollups, urban service progress and escalations.', ['Workspace', 'Dashboard', 'Conflicts', 'Integrations'], [
+  'Municipal Commissioner': roleProfile('municipal', 'Start with municipality rollups, urban service progress and escalations.', ['Workspace', 'Dashboard', 'Conflicts', 'Integrations', 'Version History'], [
     { eyebrow: '01 / MUNICIPAL ROLLUP', title: 'Urban property overview', description: 'Review ward coverage and unresolved cases.', view: 'Dashboard' },
     { eyebrow: '02 / ESCALATIONS', title: 'Urban case queue', description: 'Review cases requiring municipal action.', view: 'Conflicts' },
   ]),
-  'Chief Town Planner': roleProfile('municipal', 'Start with planning context, zoning layers and permitted urban reports.', ['Workspace', 'Map', 'Dashboard', 'Integrations'], [
+  'Chief Town Planner': roleProfile('municipal', 'Start with planning context, zoning layers and permitted urban reports.', ['Workspace', 'Map', 'Dashboard', 'Integrations', 'Version History'], [
     { eyebrow: '01 / PLANNING MAP', title: 'Land-use context', description: 'Compare parcels with zoning, buildings and roads.', view: 'Map' },
     { eyebrow: '02 / PLANNING STATUS', title: 'Urban coverage', description: 'Review building and survey coverage metrics.', view: 'Dashboard' },
   ]),
-  'GIS Manager (Municipality)': roleProfile('municipal', 'Start with municipal data registration, validation and sync status.', ['Workspace', 'Integrations', 'Upload Data', 'Version History'], [
+  'GIS Manager (Municipality)': roleProfile('municipal', 'Start with municipal data registration, validation and sync status.', ['Workspace', 'Integrations', 'Upload Data', 'Harmonization', 'Version History'], [
     { eyebrow: '01 / DATA CATALOG', title: 'Municipal integrations', description: 'Monitor roads, utilities, zones and GIS packages.', view: 'Integrations' },
     { eyebrow: '02 / INGESTION', title: 'Upload GIS package', description: 'Submit municipal layers and inspect validation.', view: 'Upload Data' },
+    { eyebrow: '03 / CONFLATION', title: 'Run harmonization', description: 'Align authorized municipal layers with cadastral data.', view: 'Harmonization' },
   ]),
   'Property Tax Officer': roleProfile('municipal', 'Start with read-only parcel and property-card verification.', ['Workspace', 'Map', 'Dashboard', 'Conflicts'], [
     { eyebrow: '01 / PROPERTY SEARCH', title: 'Parcel and building map', description: 'Inspect building footprints, parcel area and context.', view: 'Map' },
@@ -235,7 +236,7 @@ const roleProfiles: Record<string, PortalProfile> = {
     { eyebrow: '01 / CAMPAIGNS', title: 'Survey performance', description: 'Monitor district completion and accuracy standards.', view: 'Dashboard' },
     { eyebrow: '02 / CORRECTION HISTORY', title: 'Dataset versions', description: 'Review correction history and published outputs.', view: 'Version History' },
   ]),
-  'State GIS Coordinator': roleProfile('state', 'Start with cross-department data health, APIs and synchronization status.', ['Workspace', 'Integrations', 'API', 'Harmonization', 'Dashboard'], [
+  'State GIS Coordinator': roleProfile('state', 'Start with cross-department data health, APIs and synchronization status.', ['Workspace', 'Integrations', 'API', 'Harmonization', 'Dashboard', 'Version History'], [
     { eyebrow: '01 / DATA CATALOG', title: 'Integration status', description: 'Monitor source freshness, exchange and district coverage.', view: 'Integrations' },
     { eyebrow: '02 / INTEROPERABILITY', title: 'API health', description: 'Review synchronization endpoints and availability.', view: 'API' },
   ]),

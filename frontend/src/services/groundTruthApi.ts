@@ -6,18 +6,35 @@ type GroundTruthRequestResult = {
     conflict_id: string
     status: string
     created_at: string
+    review_stage: string
   }
 }
 
+export type FieldSubmissionKind = 'Survey' | 'Claim' | 'Objection'
+
 export type FieldSubmission = {
   id: string
-  type: 'Survey' | 'Claim' | 'Objection'
+  type: FieldSubmissionKind | 'Boundary correction'
+  type_label: string
   title: string
   description: string
   area_name: string
   status: string
+  review_stage?: 'village' | 'mandal' | 'district' | 'completed' | 'unassigned'
+  scope?: { district: string; mandal: string; village: string }
+  submitted_by?: { id: string; role: string; audience: 'officer' | 'citizen' }
+  assigned_to?: { id: string; role: string; audience: 'officer' | 'citizen' } | null
+  review_history?: Array<{
+    action: string
+    note: string
+    actor: { id: string; role: string; audience: 'officer' | 'citizen' }
+    created_at: string
+  }>
   created_at: string
+  updated_at?: string
 }
+
+export type ReviewAction = 'claim' | 'release' | 'comment' | 'forward' | 'request_rework' | 'resubmit' | 'approve' | 'reject'
 
 const authenticatedFetch = async (path: string, init?: RequestInit) => {
   const token = window.sessionStorage.getItem('bhusha_access_token')
@@ -29,7 +46,7 @@ const authenticatedFetch = async (path: string, init?: RequestInit) => {
 }
 
 export const groundTruthApi = {
-  submitRequest: async (payload: { conflict_id: string; geometry: Polygon; note: string }) => {
+  submitRequest: async (payload: { conflict_id: string; geometry: Polygon; note: string; district: string; mandal: string; village: string }) => {
     const token = window.sessionStorage.getItem('bhusha_access_token')
     if (!token) {
       throw new Error('Sign in again to submit a ground-truth request.')
@@ -50,9 +67,14 @@ export const groundTruthApi = {
     return result as GroundTruthRequestResult
   },
   listSubmissions: async () => authenticatedFetch('/api/v1/ground-truth/submissions') as Promise<{ submissions: FieldSubmission[] }>,
-  submitFieldSubmission: async (payload: { type: FieldSubmission['type']; title: string; description: string; area_name: string; attachment_name?: string }) => authenticatedFetch('/api/v1/ground-truth/submissions', {
+  submitFieldSubmission: async (payload: { type: FieldSubmissionKind; title: string; description: string; area_name: string; attachment_name?: string; district: string; mandal: string; village: string }) => authenticatedFetch('/api/v1/ground-truth/submissions', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
+  }) as Promise<{ submission: FieldSubmission }>,
+  reviewSubmission: async (submissionId: string, action: ReviewAction, note = '') => authenticatedFetch(`/api/v1/ground-truth/submissions/${encodeURIComponent(submissionId)}/review`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action, note }),
   }) as Promise<{ submission: FieldSubmission }>,
 }

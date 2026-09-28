@@ -9,7 +9,7 @@ import HarmonizationVisualization from './components/HarmonizationVisualization'
 import CitizenPortal from './pages/citizen/CitizenPortal'
 import UploadData from './pages/officer/UploadData'
 import { authApi } from './services/authApi'
-import { groundTruthApi, type FieldSubmission } from './services/groundTruthApi'
+import { groundTruthApi, type FieldSubmission, type FieldSubmissionKind } from './services/groundTruthApi'
 import { integrationApi, type IntegrationAccessRequest } from './services/integrationApi'
 import type { Polygon } from 'geojson'
 
@@ -217,7 +217,19 @@ const fallbackMapStyle = {
   ],
 } as const
 
-type ActivePortalUser = { audience: 'Officer' | 'Citizen'; role: string }
+type ActivePortalUser = { audience: 'Officer' | 'Citizen'; role: string; id?: string; district?: string; mandal?: string; village?: string }
+
+const reviewerStageForRole: Record<string, FieldSubmission['review_stage']> = {
+  'Village Revenue Officer (VRO)': 'village',
+  'Patwari / Lekhpal': 'village',
+  'Village Administrative Officer': 'village',
+  'Mandal Revenue Officer (MRO)': 'mandal',
+  Tahsildar: 'mandal',
+  'Survey Inspector': 'mandal',
+  'District Collector / District Magistrate': 'district',
+  'District Survey Officer': 'district',
+  'District Land Records Officer': 'district',
+}
 
 const readStoredUser = (): ActivePortalUser | null => {
   if (typeof window === 'undefined') {
@@ -226,7 +238,14 @@ const readStoredUser = (): ActivePortalUser | null => {
   try {
     const user = JSON.parse(window.sessionStorage.getItem('bhusha_user') ?? 'null')
     if (user?.role && (user.audience === 'officer' || user.audience === 'citizen')) {
-      return { audience: user.audience === 'citizen' ? 'Citizen' : 'Officer', role: user.role }
+      return {
+        audience: user.audience === 'citizen' ? 'Citizen' : 'Officer',
+        role: user.role,
+        id: user.id,
+        district: user.district,
+        mandal: user.mandal,
+        village: user.village,
+      }
     }
   } catch {
     return null
@@ -245,10 +264,17 @@ function App() {
   const [groundTruthMessage, setGroundTruthMessage] = useState('')
   const [groundTruthBusy, setGroundTruthBusy] = useState(false)
   const [fieldSubmissions, setFieldSubmissions] = useState<FieldSubmission[]>([])
-  const [submissionType, setSubmissionType] = useState<FieldSubmission['type']>('Survey')
+  const [submissionType, setSubmissionType] = useState<FieldSubmissionKind>('Survey')
   const [submissionTitle, setSubmissionTitle] = useState('')
   const [submissionDescription, setSubmissionDescription] = useState('')
   const [submissionArea, setSubmissionArea] = useState('')
+  const [submissionDistrict, setSubmissionDistrict] = useState('')
+  const [submissionMandal, setSubmissionMandal] = useState('')
+  const [submissionVillage, setSubmissionVillage] = useState('')
+  const [groundTruthVillage, setGroundTruthVillage] = useState('')
+  const [reviewNoteDrafts, setReviewNoteDrafts] = useState<Record<string, string>>({})
+  const [reviewBusyId, setReviewBusyId] = useState<string | null>(null)
+  const [reviewMessage, setReviewMessage] = useState('')
   const [submissionMessage, setSubmissionMessage] = useState('')
   const [submissionBusy, setSubmissionBusy] = useState(false)
   const [activeScale, setActiveScale] = useState<'District' | 'Mandal' | 'Conflict' | 'Feature'>('Conflict')
@@ -1471,7 +1497,12 @@ function App() {
                   conflict_id: selectedConflict.id,
                   geometry: correctionDrafts[selectedConflict.id],
                   note: groundTruthNote,
+                  district: selectedConflict.district,
+                  mandal: selectedConflict.mandal,
+                  village: groundTruthVillage,
                 })
+                const submissions = await groundTruthApi.listSubmissions()
+                setFieldSubmissions(submissions.submissions)
                 setGroundTruthMessage(`Ground-truth request ${result.request.id} queued for review.`)
               } catch (error) {
                 setGroundTruthMessage(error instanceof Error ? error.message : 'Could not submit the ground-truth request.')
@@ -1479,6 +1510,7 @@ function App() {
                 setGroundTruthBusy(false)
               }
             }}>
+              <label><span>Village for review routing</span><input value={groundTruthVillage} onChange={(event) => setGroundTruthVillage(event.target.value)} placeholder="Village name" required /></label>
               <label><span>Ground-truth request note</span><textarea value={groundTruthNote} onChange={(event) => setGroundTruthNote(event.target.value)} rows={2} required /></label>
               <button type="submit" className="request-ground-truth-button" disabled={groundTruthBusy}>{groundTruthBusy ? 'Submitting…' : 'Send for ground-truth review'}</button>
               {groundTruthMessage && <p role="status">{groundTruthMessage}</p>}
@@ -1677,6 +1709,25 @@ function App() {
   }
 
   const renderGroundTruthView = () => {
+    const currentReviewStage = activeUser ? reviewerStageForRole[activeUser.role] : undefined
+
+    const updateReview = async (submission: FieldSubmission, action: Parameters<typeof groundTruthApi.reviewSubmission>[1]) => {
+      setReviewBusyId(submission.id)
+      setReviewMessage('')
+      try {
+        const result = await groundTruthApi.reviewSubmission(submission.id, action, reviewNoteDrafts[submission.id] ?? '')
+        setFieldSubmissions((current) => current.map((item) => item.id === submission.id ? result.submission : item))
+        if (action !== 'comment') {
+          setReviewNoteDrafts((current) => ({ ...current, [submission.id]: '' }))
+        }
+        setReviewMessage(`${submission.id}: ${result.submission.status}`)
+      } catch (error) {
+        setReviewMessage(error instanceof Error ? error.message : 'Could not update this review.')
+      } finally {
+        setReviewBusyId(null)
+      }
+    }
+
     const submitFieldEntry = async (event: FormEvent<HTMLFormElement>) => {
       event.preventDefault()
       setSubmissionBusy(true)
@@ -1687,11 +1738,15 @@ function App() {
           title: submissionTitle,
           description: submissionDescription,
           area_name: submissionArea,
+          district: submissionDistrict || activeUser?.district || '',
+          mandal: submissionMandal || activeUser?.mandal || '',
+          village: submissionVillage || activeUser?.village || '',
         })
         setFieldSubmissions((current) => [result.submission, ...current])
         setSubmissionTitle('')
         setSubmissionDescription('')
         setSubmissionArea('')
+        setFieldSubmissions((current) => [result.submission, ...current.filter((item) => item.id !== result.submission.id)])
         setSubmissionMessage(`${result.submission.type} ${result.submission.id} queued for verification.`)
       } catch (error) {
         setSubmissionMessage(error instanceof Error ? error.message : 'Could not submit field information.')
@@ -1755,9 +1810,14 @@ function App() {
       </section>
       <section className="field-submission-layout">
         <div className="panel field-submission-panel">
-          <div className="panel-header small-header"><span>New field submission</span><span>Live intake</span></div>
+          <div className="panel-header small-header"><span>New field submission</span><span>Village → Mandal → District</span></div>
           <form className="field-submission-form" onSubmit={submitFieldEntry}>
-            <label><span>Submission type</span><select value={submissionType} onChange={(event) => setSubmissionType(event.target.value as FieldSubmission['type'])}><option>Survey</option><option>Claim</option><option>Objection</option></select></label>
+            <label><span>Submission type</span><select value={submissionType} onChange={(event) => setSubmissionType(event.target.value as FieldSubmissionKind)}><option>Survey</option><option>Claim</option><option>Objection</option></select></label>
+            <div className="submission-scope-fields">
+              <label><span>District</span><input value={submissionDistrict || activeUser?.district || ''} onChange={(event) => setSubmissionDistrict(event.target.value)} placeholder="e.g. Tirupati District" required /></label>
+              <label><span>Mandal</span><input value={submissionMandal || activeUser?.mandal || ''} onChange={(event) => setSubmissionMandal(event.target.value)} placeholder="e.g. Tirupati Urban" required /></label>
+              <label><span>Village</span><input value={submissionVillage || activeUser?.village || ''} onChange={(event) => setSubmissionVillage(event.target.value)} placeholder="Village name" required /></label>
+            </div>
             <label><span>Area / parcel</span><input value={submissionArea} onChange={(event) => setSubmissionArea(event.target.value)} placeholder="e.g. Chandragiri / Survey 101" required /></label>
             <label><span>Title</span><input value={submissionTitle} onChange={(event) => setSubmissionTitle(event.target.value)} placeholder="Short description" required /></label>
             <label><span>Details</span><textarea value={submissionDescription} onChange={(event) => setSubmissionDescription(event.target.value)} placeholder="Describe the survey, claim, or objection" rows={4} required /></label>
@@ -1766,9 +1826,44 @@ function App() {
           </form>
         </div>
         <div className="panel field-submission-panel">
-          <div className="panel-header small-header"><span>Live field queue</span><strong>{fieldSubmissions.length} entries</strong></div>
+          <div className="panel-header small-header"><span>{currentReviewStage ? `${currentReviewStage} review queue` : 'My submissions'}</span><strong>{fieldSubmissions.length} cases</strong></div>
+          {reviewMessage && <p className="field-submission-message" role="status">{reviewMessage}</p>}
           <div className="field-submission-list">
-            {fieldSubmissions.length ? fieldSubmissions.map((submission) => <div className="field-submission-item" key={submission.id}><div><strong>{submission.title}</strong><small>{submission.id} · {submission.area_name}</small></div><span className={`submission-type ${submission.type.toLowerCase()}`}>{submission.type}</span><em>{submission.status}</em></div>) : <p className="field-submission-empty">No surveys, claims, or objections submitted yet.</p>}
+            {fieldSubmissions.length ? fieldSubmissions.map((submission) => {
+              const assignedToCurrentUser = submission.assigned_to?.id === activeUser?.id
+              const canReview = Boolean(currentReviewStage && submission.review_stage === currentReviewStage)
+              const isSubmitter = submission.submitted_by?.id === activeUser?.id
+              const note = reviewNoteDrafts[submission.id] ?? ''
+              return (
+                <article className="field-submission-item review-case" key={submission.id}>
+                  <div className="review-case-heading"><strong>{submission.title}</strong><span className={`submission-type ${(submission.type ?? '').toLowerCase().replace(/\s+/g, '-')}`}>{submission.type_label ?? submission.type}</span></div>
+                  <small>{submission.id} · {submission.area_name} · {submission.scope?.village || 'Village unassigned'}, {submission.scope?.mandal || 'Mandal unassigned'}, {submission.scope?.district || 'District unassigned'}</small>
+                  <p>{submission.description}</p>
+                  <em>{submission.status} · {submission.review_stage === 'completed' ? 'Workflow complete' : `At ${submission.review_stage ?? 'unassigned'} stage`}</em>
+                  <small>Submitted by {submission.submitted_by?.role ?? 'Unknown'} · {new Date(submission.created_at).toLocaleString()}</small>
+                  {submission.assigned_to && <small>Claimed by {submission.assigned_to.role}</small>}
+                  {canReview && (assignedToCurrentUser || !submission.assigned_to) && submission.status !== 'Approved' && submission.status !== 'Rejected' && submission.status !== 'Rework requested' && (
+                    <div className="review-case-actions">
+                      {!submission.assigned_to && <button type="button" className="secondary" disabled={reviewBusyId === submission.id} onClick={() => updateReview(submission, 'claim')}>Claim case</button>}
+                      {assignedToCurrentUser && <>
+                        <button type="button" className="secondary" disabled={reviewBusyId === submission.id} onClick={() => updateReview(submission, 'release')}>Release case</button>
+                        <label><span>Review note</span><textarea rows={2} value={note} onChange={(event) => setReviewNoteDrafts((current) => ({ ...current, [submission.id]: event.target.value }))} placeholder="Record review findings or decision rationale" /></label>
+                        <button type="button" className="secondary" disabled={reviewBusyId === submission.id || note.trim().length < 2} onClick={() => updateReview(submission, 'comment')}>Add note</button>
+                        {currentReviewStage !== 'district' && <button type="button" className="secondary" disabled={reviewBusyId === submission.id || note.trim().length < 2} onClick={() => updateReview(submission, 'forward')}>Forward to {currentReviewStage === 'village' ? 'mandal' : 'district'}</button>}
+                        <button type="button" className="secondary" disabled={reviewBusyId === submission.id || note.trim().length < 2} onClick={() => updateReview(submission, 'request_rework')}>Request field rework</button>
+                        {currentReviewStage === 'district' && <>
+                          <button type="button" className="primary" disabled={reviewBusyId === submission.id} onClick={() => updateReview(submission, 'approve')}>Approve</button>
+                          <button type="button" className="secondary" disabled={reviewBusyId === submission.id || note.trim().length < 2} onClick={() => updateReview(submission, 'reject')}>Reject</button>
+                        </>}
+                      </>}
+                    </div>
+                  )}
+                  {isSubmitter && submission.status === 'Rework requested' && <div className="review-case-actions"><label><span>Response / updated field details</span><textarea rows={2} value={note} onChange={(event) => setReviewNoteDrafts((current) => ({ ...current, [submission.id]: event.target.value }))} required /></label><button type="button" className="primary" disabled={reviewBusyId === submission.id || note.trim().length < 2} onClick={() => updateReview(submission, 'resubmit')}>Resubmit for review</button></div>}
+                  {isSubmitter && submission.status !== 'Approved' && submission.status !== 'Rejected' && submission.status !== 'Rework requested' && <div className="review-case-actions"><label><span>Reply to the review thread</span><textarea rows={2} value={note} onChange={(event) => setReviewNoteDrafts((current) => ({ ...current, [submission.id]: event.target.value }))} placeholder="Add a clarification or supporting detail" /></label><button type="button" className="secondary" disabled={reviewBusyId === submission.id || note.trim().length < 2} onClick={() => updateReview(submission, 'comment')}>Send reply</button></div>}
+                  <details className="review-history"><summary>Correspondence · {submission.review_history?.length ?? 0} events</summary>{submission.review_history?.map((event, index) => <div className="review-history-event" key={`${submission.id}-${index}`}><strong>{event.action.replaceAll('_', ' ')}</strong><span>{event.actor.role} · {new Date(event.created_at).toLocaleString()}</span><p>{event.note}</p></div>)}</details>
+                </article>
+              )
+            }) : <p className="field-submission-empty">No submissions are currently visible in this queue.</p>}
           </div>
         </div>
       </section>
@@ -1870,7 +1965,7 @@ function App() {
         mode={portalMode}
         onNavigate={setPortalMode}
         onEnterWorkspace={(audience, role) => {
-          setActiveUser({ audience, role })
+          setActiveUser(readStoredUser() ?? { audience, role })
           setActiveNav('Workspace')
           setPortalMode('workspace')
         }}

@@ -35,6 +35,32 @@ def test_officer_login_checks_password_and_role(monkeypatch):
     }
 
 
+def test_authenticated_principal_preserves_review_scope(monkeypatch):
+    password_hash = authentication.hash_password("scope-aware password")
+    _set_accounts(monkeypatch, {
+        "employee-42": {
+            "audience": "officer",
+            "role": "Village Surveyor",
+            "district": "Tirupati District",
+            "mandal": "Tirupati Urban",
+            "village": "Tirupati Urban",
+            "password_hash": password_hash,
+        },
+    })
+
+    session = authentication.authenticate_officer("employee-42", "scope-aware password", "Village Surveyor")
+
+    assert session is not None
+    assert authentication.get_session(session["access_token"]) == {
+        "id": "employee-42",
+        "audience": "officer",
+        "role": "Village Surveyor",
+        "district": "Tirupati District",
+        "mandal": "Tirupati Urban",
+        "village": "Tirupati Urban",
+    }
+
+
 def test_citizen_otp_is_single_use_and_role_bound(monkeypatch):
     _set_accounts(monkeypatch, {
         "owner@example.com": {"audience": "citizen", "role": "Land Owner"},

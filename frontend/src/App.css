@@ -5,6 +5,43 @@
   color: #1f2a1d;
 }
 
+.component-placeholder {
+  min-height: 220px;
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  border: 1px solid rgba(32, 49, 41, 0.14);
+  border-top: 3px solid #348c8b;
+  background: rgba(255, 255, 255, 0.42);
+}
+
+.component-placeholder.dashboard-placeholder {
+  border-top-color: #f8ba00;
+}
+
+.component-placeholder-kicker {
+  color: #52645d;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.component-placeholder h2 {
+  margin: 8px 0;
+  color: #18332d;
+  font-size: 1.35rem;
+}
+
+.component-placeholder p {
+  max-width: 42ch;
+  margin: 0;
+  color: #52645d;
+  font-size: 0.9rem;
+}
+
 .sidebar {
   width: 320px;
   background: #f3ede0;
@@ -1075,6 +1112,18 @@
 .submission-type.claim { color: #785318; background: rgba(239, 200, 74, 0.2); }
 .submission-type.objection { color: #805543; background: rgba(200, 93, 73, 0.12); }
 .field-submission-empty { color: #66776e; font-size: 9px; }
+.submission-scope-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.review-case { gap: 8px; }
+.review-case-heading { display: flex; align-items: start; justify-content: space-between; gap: 8px; }
+.review-case > p { margin: 0; color: #52645d; font-size: 9px; line-height: 1.5; white-space: pre-wrap; }
+.review-case-actions { display: flex; flex-wrap: wrap; align-items: end; gap: 6px; padding-top: 5px; }
+.review-case-actions label { flex: 1 1 100%; display: grid; gap: 5px; color: #52645d; font-size: 9px; }
+.review-case-actions textarea { width: 100%; padding: 8px; border: 1px solid rgba(24, 51, 45, 0.16); color: #18332d; background: rgba(255, 255, 255, 0.45); font: 400 10px 'DM Sans', sans-serif; resize: vertical; }
+.review-history { border-top: 1px solid rgba(24, 51, 45, 0.12); padding-top: 7px; color: #52645d; font-size: 9px; }
+.review-history summary { cursor: pointer; font-weight: 700; }
+.review-history-event { display: grid; gap: 3px; margin-top: 8px; padding-left: 9px; border-left: 2px solid #348c8b; }
+.review-history-event span { font-size: 8px; }
+.review-history-event p { margin: 0; line-height: 1.45; }
 
 .conflict-list-panel {
   display: flex;
@@ -1329,6 +1378,7 @@
 .version-table td.version-summary small { font-size: 8px; }
 
 @media (max-width: 680px) {
+  .submission-scope-fields { grid-template-columns: 1fr; }
   .integration-grid { grid-template-columns: 1fr; }
   .integration-request-heading { align-items: flex-start; flex-direction: column; }
   .integration-request-form { grid-template-columns: 1fr; }

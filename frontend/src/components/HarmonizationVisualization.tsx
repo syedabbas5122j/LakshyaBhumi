@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import type { HarmonizationRun } from '../data'
 import { uploadApi, type UploadedDataset } from '../services/uploadApi'
 import { engineApi, type LiveHarmonizationResult } from '../services/engineApi'
@@ -87,23 +87,44 @@ const downloadJson = (filename: string, value: unknown) => {
   URL.revokeObjectURL(url)
 }
 
+type VisualizedStep = LiveHarmonizationResult['steps'][number] & {
+  metrics?: Record<string, string | number>
+}
+
+const getStepMetrics = (step: unknown): Record<string, string | number> => {
+  if (!step || typeof step !== 'object' || !('metrics' in step)) return {}
+  const metrics = (step as { metrics?: unknown }).metrics
+  return metrics && typeof metrics === 'object' ? metrics as Record<string, string | number> : {}
+}
+
 export default function HarmonizationVisualization({ run, latestPublishedRun, canRun }: HarmonizationVisualizationProps) {
   const [liveResult, setLiveResult] = useState<LiveHarmonizationResult | null>(null)
   const [selectedStepKey, setSelectedStepKey] = useState<string>('georeferencing')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [modalCurrentStepIndex, setModalCurrentStepIndex] = useState(0)
   const [busy, setBusy] = useState(false)
+  const [isPaused, setIsPaused] = useState(false)
+  const [completedStepKeys, setCompletedStepKeys] = useState<string[]>([])
+  const [activeRunSteps, setActiveRunSteps] = useState<VisualizedStep[]>([])
+  const [stepSeconds, setStepSeconds] = useState(0)
   const [error, setError] = useState('')
+  const pauseRef = useRef(false)
   const confidenceTone = run.confidence >= 90 ? 'high' : run.confidence >= 80 ? 'medium' : 'low'
   const publishedDelta = latestPublishedRun && latestPublishedRun.id !== run.id
     ? run.confidence - latestPublishedRun.confidence
     : null
 
   const activeStage = pipelineStages.find((stage) => stage.key === selectedStepKey) ?? pipelineStages[0]
-  const activeCompletedStep = liveResult?.steps.find((step) => step.key === selectedStepKey)
+  const activeCompletedStep = activeRunSteps.find((step) => step.key === selectedStepKey && completedStepKeys.includes(step.key))
 
   const triggerHarmonizationRun = async () => {
     setBusy(true)
+    setIsPaused(false)
+    pauseRef.current = false
+    setLiveResult(null)
+    setCompletedStepKeys([])
+    setActiveRunSteps([])
+    setStepSeconds(0)
     setError('')
     setIsModalOpen(true)
     setModalCurrentStepIndex(0)
@@ -113,12 +134,26 @@ export default function HarmonizationVisualization({ run, latestPublishedRun, ca
       const res = source && target
         ? await engineApi.runHarmonization(source.id, target.id)
         : await engineApi.runHarmonization()
+      setActiveRunSteps(res.steps as VisualizedStep[])
       
-      // Simulate real-time step progress transitions in the modal
+      // Keep each visible stage open long enough for a reviewer to inspect it.
       for (let i = 0; i < res.steps.length; i++) {
         setModalCurrentStepIndex(i)
         setSelectedStepKey(res.steps[i].key)
-        await new Promise((resolve) => setTimeout(resolve, 800))
+        setStepSeconds(0)
+        await new Promise<void>((resolve) => {
+          let elapsed = 0
+          const timer = window.setInterval(() => {
+            if (pauseRef.current) return
+            elapsed += 100
+            setStepSeconds(Math.floor(elapsed / 1000))
+            if (elapsed >= 10000) {
+              window.clearInterval(timer)
+              resolve()
+            }
+          }, 100)
+        })
+        setCompletedStepKeys((current) => [...current, res.steps[i].key])
       }
       setLiveResult(res)
     } catch (runError) {
@@ -129,7 +164,7 @@ export default function HarmonizationVisualization({ run, latestPublishedRun, ca
   }
 
   const modalActiveStage = pipelineStages[modalCurrentStepIndex] ?? pipelineStages[0]
-  const modalCompletedStep = liveResult?.steps.find((step) => step.key === modalActiveStage.key)
+  const modalCompletedStep = activeRunSteps.find((step) => step.key === modalActiveStage.key && completedStepKeys.includes(step.key))
 
   return (
     <section className="harmonization-visualization" aria-labelledby="harmonization-visual-title">
@@ -161,7 +196,7 @@ export default function HarmonizationVisualization({ run, latestPublishedRun, ca
               </div>
               <div className="modal-header-actions">
                 <span className={`modal-status-tag ${busy ? 'processing' : 'complete'}`}>
-                  {busy ? 'Processing Step 0' + (modalCurrentStepIndex + 1) + ' of 07...' : 'Pipeline Completed Successfully ✓'}
+                  {busy ? `${isPaused ? 'Paused' : `Processing Step 0${modalCurrentStepIndex + 1}`} of 07 · ${stepSeconds}s / 10s` : 'Pipeline Completed Successfully ✓'}
                 </span>
                 <button type="button" className="modal-close-button" onClick={() => !busy && setIsModalOpen(false)} disabled={busy}>
                   ✕
@@ -174,14 +209,14 @@ export default function HarmonizationVisualization({ run, latestPublishedRun, ca
               <div className="modal-steps-sidebar">
                 <span className="modal-sidebar-title">PIPELINE STAGES</span>
                 {pipelineStages.map((stage, index) => {
-                  const isDone = liveResult && !busy
+                  const isDone = completedStepKeys.includes(stage.key)
                   const isCurrent = modalCurrentStepIndex === index
                   return (
                     <button
                       key={stage.key}
                       type="button"
                       className={`modal-step-tab ${isCurrent ? 'active' : ''} ${isDone || index < modalCurrentStepIndex ? 'done' : ''}`}
-                      onClick={() => setModalCurrentStepIndex(index)}
+                      onClick={() => !busy && setModalCurrentStepIndex(index)}
                     >
                       <div className="step-tab-number">{stage.number}</div>
                       <div className="step-tab-info">
@@ -317,7 +352,7 @@ export default function HarmonizationVisualization({ run, latestPublishedRun, ca
                       <span>Status Detail</span>
                       <strong>{modalCompletedStep?.detail ?? 'Awaiting execution...'}</strong>
                     </div>
-                    {modalCompletedStep?.metrics && Object.entries(modalCompletedStep.metrics).map(([k, v]) => (
+                    {Object.entries(getStepMetrics(modalCompletedStep)).map(([k, v]) => (
                       <div className="metric-box" key={k}>
                         <span>{k}</span>
                         <strong>{String(v)}</strong>
@@ -330,7 +365,12 @@ export default function HarmonizationVisualization({ run, latestPublishedRun, ca
 
             <div className="modal-dialog-footer">
               <small>Outputs automatically verified and formatted to GeoJSON EPSG:4326 specifications.</small>
-              {liveResult && (
+              {busy && <button type="button" className="secondary-download" onClick={() => {
+                const nextPaused = !isPaused
+                pauseRef.current = nextPaused
+                setIsPaused(nextPaused)
+              }}>{isPaused ? 'Resume pipeline' : 'Pause pipeline'}</button>}
+              {liveResult && !busy && (
                 <div className="modal-footer-actions">
                   <button type="button" className="secondary-download" onClick={() => downloadJson(`${liveResult.run_id}-harmonized.geojson`, liveResult.output.geojson)}>
                     📥 Download GeoJSON
@@ -360,22 +400,22 @@ export default function HarmonizationVisualization({ run, latestPublishedRun, ca
         {/* Horizontal interactive step selector */}
         <div className="harmonization-step-panels">
           {pipelineStages.map((stage) => {
-            const completedStep = liveResult?.steps.find((step) => step.key === stage.key)
+            const completedStep = activeRunSteps.find((step) => step.key === stage.key && completedStepKeys.includes(step.key))
             const isSelected = stage.key === selectedStepKey
             return (
               <button
                 type="button"
-                className={`harmonization-step-panel ${completedStep ? 'completed' : 'ready'} ${isSelected ? 'active-step' : ''}`}
+                className={`harmonization-step-panel ${completedStep ? 'completed' : 'ready'} ${busy && stage.key === modalActiveStage.key ? 'running' : ''} ${isSelected ? 'active-step' : ''}`}
                 key={stage.key}
                 onClick={() => setSelectedStepKey(stage.key)}
               >
                 <div className="harmonization-step-panel-top">
                   <span>{stage.number}</span>
-                  <b>{completedStep ? '✓ Done' : 'Ready'}</b>
+                  <b>{completedStep ? '✓ Done' : busy && stage.key === modalActiveStage.key ? 'Running' : 'Ready'}</b>
                 </div>
                 <strong>{stage.label}</strong>
                 <p>{stage.description}</p>
-                <small>{completedStep?.detail ?? 'Click to inspect step configuration'}</small>
+                <small>{completedStep?.detail ?? (busy && stage.key === modalActiveStage.key ? `Processing... ${stepSeconds}s / 10s` : 'Click to inspect step configuration')}</small>
               </button>
             )
           })}
@@ -395,7 +435,7 @@ export default function HarmonizationVisualization({ run, latestPublishedRun, ca
               <label>Status Summary</label>
               <strong>{activeCompletedStep?.detail ?? 'Pending execution start'}</strong>
             </div>
-            {activeCompletedStep?.metrics && Object.entries(activeCompletedStep.metrics).map(([metricLabel, metricValue]) => (
+            {Object.entries(getStepMetrics(activeCompletedStep)).map(([metricLabel, metricValue]) => (
               <div className="inspector-metric-card" key={metricLabel}>
                 <label>{metricLabel}</label>
                 <strong>{String(metricValue)}</strong>
@@ -425,6 +465,34 @@ export default function HarmonizationVisualization({ run, latestPublishedRun, ca
           <small>{liveResult ? `File: ${liveResult.stored_files?.geojson_filename ?? 'harmonized-output.geojson'} · ${liveResult.output.features.toLocaleString()} generated features` : `${run.changedFeatures.toLocaleString()} changed features`}</small>
         </div>
       </div>
+
+      <section className="harmonization-gis-output" aria-label="GIS output preview">
+        <div className="harmonization-gis-heading">
+          <div><span className="harmonization-stage-label">04 / GIS OUTPUT PREVIEW</span><h4>Harmonized cadastral layer</h4></div>
+          <div className="harmonization-gis-tools"><span>EPSG:4326</span><span>PARCELS</span><span>CONFLICTS</span><span>LINEAGE</span></div>
+        </div>
+        <div className="harmonization-gis-body">
+          <div className="harmonization-gis-map">
+            <div className="gis-map-grid" />
+            <div className="gis-road gis-road-one" /><div className="gis-road gis-road-two" />
+            <div className="gis-parcel gis-parcel-one"><span>101</span></div>
+            <div className="gis-parcel gis-parcel-two"><span>102</span></div>
+            <div className="gis-parcel gis-parcel-three"><span>103</span></div>
+            <div className="gis-parcel gis-parcel-four"><span>104</span></div>
+            <div className="gis-conflict-marker"><i />CONFLICT</div>
+            <div className="gis-north-arrow">N<span>↑</span></div>
+            <div className="gis-scale">0 ───── 100 m</div>
+            <div className="gis-coordinate">13.6742° N · 79.4310° E</div>
+          </div>
+          <div className="harmonization-gis-legend">
+            <span className="harmonization-stage-label">VISIBLE LAYERS</span>
+            <p><i className="gis-legend-swatch parcel" /> Harmonized parcels</p>
+            <p><i className="gis-legend-swatch boundary" /> Administrative boundary</p>
+            <p><i className="gis-legend-swatch conflict" /> Human verification area</p>
+            <div className="gis-output-count"><strong>{liveResult?.output.features.toLocaleString() ?? run.changedFeatures.toLocaleString()}</strong><span>features in output layer</span></div>
+          </div>
+        </div>
+      </section>
 
       <div className="harmonization-metrics">
         <div className="harmonization-metric">

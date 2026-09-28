@@ -1,4 +1,5 @@
 from typing import Annotated, Any
+from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -21,6 +22,7 @@ HARMONIZATION_ROLES = {
     "Director of Survey & Land Records",
     "State GIS Coordinator",
     "Chief Cartographer",
+    "GIS Manager (Municipality)",
 }
 
 
@@ -105,7 +107,7 @@ def harmonize_datasets(
     except ValueError as error:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(error)) from error
 
-    run_id = f"live-{source_record['id']}-{target_record['id']}"
+    run_id = f"live-{source_record['id']}-{target_record['id']}-{uuid4().hex[:8]}"
     stored_files = persist_harmonization_run(
         run_id,
         source_record,
@@ -121,55 +123,13 @@ def harmonize_datasets(
         "source": {"id": source_record["id"], "name": source_record["dataset_name"], "features": len(source_features)},
         "target": {"id": target_record["id"], "name": target_record["dataset_name"], "features": len(target_features)},
         "steps": [
-            {
-                "key": "georeferencing",
-                "label": "Geo-referencing",
-                "status": "completed",
-                "detail": f"{result.transform.features_transformed} features normalised to {request.target_crs}",
-                "metrics": {"Features Transformed": result.transform.features_transformed, "Source CRS": result.transform.source_crs, "Target CRS": result.transform.target_crs},
-            },
-            {
-                "key": "matching",
-                "label": "Spatial matching",
-                "status": "completed",
-                "detail": f"{result.matching.matched} matched pairs from {result.matching.candidate_pairs} candidates",
-                "metrics": {"Matched Pairs": result.matching.matched, "Candidates": result.matching.candidate_pairs, "Unmatched Source": len(result.matching.unmatched_source), "Unmatched Target": len(result.matching.unmatched_target)},
-            },
-            {
-                "key": "topology",
-                "label": "Topology correction",
-                "status": "completed",
-                "detail": f"{len(result.topology.fixes_applied)} fixes applied",
-                "metrics": {"Fixes Applied": len(result.topology.fixes_applied), "Invalid Geometries": result.topology.invalid_count, "Remaining Issues": result.topology.remaining_issues},
-            },
-            {
-                "key": "attributes",
-                "label": "Attribute mapping",
-                "status": "completed",
-                "detail": f"{len(result.attributes.mappings)} field mappings reviewed",
-                "metrics": {"Fields Mapped": len(result.attributes.mappings), "Unmapped Source": len(result.attributes.unmapped_source), "Confidence": f"{result.attributes.confidence:.0%}"},
-            },
-            {
-                "key": "conflicts",
-                "label": "Conflict resolution",
-                "status": "completed",
-                "detail": f"{result.conflicts.total_conflicts} conflicts detected, {result.conflicts.auto_resolved} auto-resolved",
-                "metrics": {"Total Conflicts": result.conflicts.total_conflicts, "Auto-Resolved": result.conflicts.auto_resolved, "Pending Review": result.conflicts.pending_review, "Escalated": result.conflicts.escalated},
-            },
-            {
-                "key": "confidence",
-                "label": "Confidence scoring",
-                "status": "completed",
-                "detail": f"{result.confidence.mean_confidence:.0%} mean confidence",
-                "metrics": {"Mean Confidence": f"{result.confidence.mean_confidence:.0%}", "Auto-Approved": result.confidence.auto_approved, "Needs Review": result.confidence.needs_review, "Escalated": result.confidence.escalated},
-            },
-            {
-                "key": "changes",
-                "label": "Change detection",
-                "status": "completed",
-                "detail": f"{result.changes.modified} modified, {result.changes.added} added, {result.changes.removed} removed",
-                "metrics": {"Modified": result.changes.modified, "Added": result.changes.added, "Removed": result.changes.removed, "Unchanged": result.changes.unchanged},
-            },
+            {"key": "georeferencing", "label": "Geo-referencing", "status": "completed", "detail": f"{result.transform.features_transformed} features normalised to {request.target_crs}"},
+            {"key": "matching", "label": "Spatial matching", "status": "completed", "detail": f"{result.matching.matched} matched pairs from {result.matching.candidate_pairs} candidates"},
+            {"key": "topology", "label": "Topology correction", "status": "completed", "detail": f"{len(result.topology.fixes_applied)} fixes applied"},
+            {"key": "attributes", "label": "Attribute mapping", "status": "completed", "detail": f"{len(result.attributes.mappings)} field mappings reviewed"},
+            {"key": "conflicts", "label": "Conflict resolution", "status": "completed", "detail": f"{result.conflicts.total_conflicts} conflicts detected, {result.conflicts.auto_resolved} auto-resolved", "metrics": {"Conflicts detected": result.conflicts.total_conflicts, "Human verification": result.conflicts.pending_review + result.conflicts.escalated, "Auto-resolved": result.conflicts.auto_resolved}},
+            {"key": "confidence", "label": "Confidence scoring", "status": "completed", "detail": f"{result.confidence.mean_confidence:.0%} mean confidence"},
+            {"key": "changes", "label": "Change detection", "status": "completed", "detail": f"{result.changes.modified} modified, {result.changes.added} added, {result.changes.removed} removed", "metrics": {"Changes detected": result.changes.modified + result.changes.added + result.changes.removed, "Modified": result.changes.modified, "Human verification": result.changes.modified + result.changes.added}},
         ],
         "output": {
             "features": len(result.harmonized_features),
@@ -189,7 +149,7 @@ def harmonize_datasets(
                 ],
             },
             "report": {
-                "run_id": f"live-{source_record['id']}-{target_record['id']}",
+                "run_id": run_id,
                 "source_dataset": source_record["dataset_name"],
                 "target_dataset": target_record["dataset_name"],
                 "target_crs": request.target_crs,

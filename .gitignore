@@ -36,3 +36,11 @@ frontend/public/maplibre-gl-worker.mjs
 # Local env files
 .env
 .env.*
+
+# Flutter
+.dart_tool/
+**/build/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/

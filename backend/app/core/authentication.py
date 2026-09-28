@@ -133,11 +133,16 @@ def _load_accounts() -> dict[str, dict[str, Any]]:
 
 
 def _principal(identity: str, account: dict[str, Any]) -> dict[str, str]:
-    return {
+    principal = {
         "id": str(account.get("id") or identity),
         "audience": str(account["audience"]),
         "role": str(account["role"]),
     }
+    for key in ("district", "mandal", "village"):
+        value = account.get(key)
+        if isinstance(value, str) and value.strip():
+            principal[key] = value.strip()
+    return principal
 
 
 def _issue_session(identity: str, account: dict[str, Any]) -> dict[str, Any]:

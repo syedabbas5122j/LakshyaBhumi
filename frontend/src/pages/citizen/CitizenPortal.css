@@ -42,12 +42,8 @@
 .citizen-account button { padding: 8px 0; border: 0; color: var(--citizen-green); background: transparent; font-size: 10px; font-weight: 700; cursor: pointer; }
 
 .citizen-welcome {
-  min-height: 490px;
-  padding: 58px 0 62px;
-  display: grid;
-  grid-template-columns: 0.9fr 1.1fr;
-  align-items: center;
-  gap: clamp(35px, 7vw, 90px);
+  padding: 48px 0 42px;
+  display: block;
 }
 
 .citizen-welcome-copy { max-width: 470px; }
@@ -122,6 +118,10 @@
 .citizen-submission small { margin-top: 3px; color: var(--citizen-muted); font-size: 8px; }
 .citizen-submission span { color: var(--citizen-teal); font-size: 8px; font-weight: 700; text-transform: uppercase; }
 .citizen-submission em { grid-column: 1 / -1; color: var(--citizen-green); font-size: 8px; font-style: normal; }
+.citizen-submission details { grid-column: 1 / -1; color: var(--citizen-muted); font-size: 8px; }
+.citizen-submission summary { cursor: pointer; font-weight: 700; }
+.citizen-submission details p { margin: 8px 0 0; line-height: 1.5; }
+.citizen-submission details small { display: block; }
 .citizen-section-heading { margin-bottom: 22px; display: flex; align-items: flex-end; justify-content: space-between; gap: 35px; }
 .citizen-section-heading h2 { margin: 8px 0 0; font: 500 28px 'Space Grotesk', sans-serif; }
 .citizen-section-heading > p { max-width: 430px; margin: 0; color: var(--citizen-muted); font-size: 10px; line-height: 1.7; }

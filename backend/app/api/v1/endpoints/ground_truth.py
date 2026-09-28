@@ -5,8 +5,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.core.authentication import get_session
-from app.engine.review_queue import create_ground_truth_request, list_ground_truth_requests
-from app.services.field_submission_service import create_submission, list_submissions
+from app.services.field_submission_service import create_submission, list_submissions, review_submission
 
 router = APIRouter(prefix="/ground-truth", tags=["ground-truth"])
 bearer_scheme = HTTPBearer(auto_error=False)
@@ -33,6 +32,10 @@ class GroundTruthRequestBody(BaseModel):
     conflict_id: str = Field(min_length=1, max_length=80)
     geometry: PolygonGeometry
     note: str = Field(min_length=1, max_length=2000)
+    district: str = Field(default="", max_length=160)
+    mandal: str = Field(default="", max_length=160)
+    village: str = Field(default="", max_length=160)
+    area_name: str = Field(default="", max_length=160)
 
 
 class FieldSubmissionBody(BaseModel):
@@ -41,6 +44,14 @@ class FieldSubmissionBody(BaseModel):
     description: str = Field(min_length=2, max_length=4000)
     area_name: str = Field(min_length=2, max_length=160)
     attachment_name: str = Field(default="", max_length=240)
+    district: str = Field(default="", max_length=160)
+    mandal: str = Field(default="", max_length=160)
+    village: str = Field(default="", max_length=160)
+
+
+class SubmissionReviewBody(BaseModel):
+    action: Literal["claim", "release", "comment", "forward", "request_rework", "resubmit", "approve", "reject"]
+    note: str = Field(default="", max_length=2000)
 
 
 def get_authenticated_user(
@@ -53,8 +64,8 @@ def get_authenticated_user(
 
 
 @router.get("/")
-def list_ground_truth(_user: Annotated[dict[str, str], Depends(get_authenticated_user)]) -> dict:
-    return {"items": list_ground_truth_requests()}
+def list_ground_truth(user: Annotated[dict[str, str], Depends(get_authenticated_user)]) -> dict:
+    return {"items": [item for item in list_submissions(user) if item.get("conflict_id")]}
 
 
 @router.post("/requests", status_code=status.HTTP_201_CREATED)
@@ -62,18 +73,30 @@ def submit_ground_truth_request(
     payload: GroundTruthRequestBody,
     user: Annotated[dict[str, str], Depends(get_authenticated_user)],
 ) -> dict:
-    request = create_ground_truth_request(
-        payload.conflict_id,
-        payload.geometry.model_dump(),
-        payload.note,
-        user,
-    )
+    try:
+        request = create_submission(
+            "Boundary correction",
+            f"Boundary correction for {payload.conflict_id}",
+            payload.note.strip(),
+            payload.area_name.strip() or payload.conflict_id,
+            user,
+            district=payload.district,
+            mandal=payload.mandal,
+            village=payload.village,
+            submission_type_label="Ground-truth boundary correction",
+            geometry=payload.geometry.model_dump(),
+            conflict_id=payload.conflict_id,
+        )
+    except PermissionError as error:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(error)) from error
+    except ValueError as error:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(error)) from error
     return {"request": request}
 
 
 @router.get("/submissions")
-def get_field_submissions(_user: Annotated[dict[str, str], Depends(get_authenticated_user)]) -> dict:
-    return {"submissions": list_submissions()}
+def get_field_submissions(user: Annotated[dict[str, str], Depends(get_authenticated_user)]) -> dict:
+    return {"submissions": list_submissions(user)}
 
 
 @router.post("/submissions", status_code=status.HTTP_201_CREATED)
@@ -81,12 +104,37 @@ def submit_field_submission(
     payload: FieldSubmissionBody,
     user: Annotated[dict[str, str], Depends(get_authenticated_user)],
 ) -> dict:
-    submission = create_submission(
-        payload.type,
-        payload.title.strip(),
-        payload.description.strip(),
-        payload.area_name.strip(),
-        user,
-        payload.attachment_name.strip(),
-    )
+    try:
+        submission = create_submission(
+            payload.type,
+            payload.title.strip(),
+            payload.description.strip(),
+            payload.area_name.strip(),
+            user,
+            payload.attachment_name.strip(),
+            district=payload.district,
+            mandal=payload.mandal,
+            village=payload.village,
+        )
+    except PermissionError as error:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(error)) from error
+    except ValueError as error:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(error)) from error
+    return {"submission": submission}
+
+
+@router.post("/submissions/{submission_id}/review")
+def update_submission_review(
+    submission_id: str,
+    payload: SubmissionReviewBody,
+    user: Annotated[dict[str, str], Depends(get_authenticated_user)],
+) -> dict:
+    try:
+        submission = review_submission(submission_id, payload.action, payload.note, user)
+    except LookupError as error:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error)) from error
+    except PermissionError as error:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(error)) from error
+    except ValueError as error:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(error)) from error
     return {"submission": submission}

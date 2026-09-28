@@ -278,5 +278,117 @@
     "integration_name": "Utilities & Infrastructure",
     "status": "Queued - connector approval pending",
     "queued_at": "2026-09-27T20:22:45.314068+00:00"
+  },
+  {
+    "upload_id": "UP-0794BA29F8F4",
+    "dataset_name": "Village parcel corrections",
+    "integration_id": "survey-land-records",
+    "integration_name": "Survey & Land Records",
+    "status": "Queued - connector approval pending",
+    "queued_at": "2026-09-28T16:58:34.052728+00:00"
+  },
+  {
+    "upload_id": "UP-0794BA29F8F4",
+    "dataset_name": "Village parcel corrections",
+    "integration_id": "revenue",
+    "integration_name": "Revenue Department",
+    "status": "Queued - connector approval pending",
+    "queued_at": "2026-09-28T16:58:34.052728+00:00"
+  },
+  {
+    "upload_id": "UP-0794BA29F8F4",
+    "dataset_name": "Village parcel corrections",
+    "integration_id": "municipal-gis",
+    "integration_name": "Municipal GIS / Urban Local Bodies",
+    "status": "Queued - connector approval pending",
+    "queued_at": "2026-09-28T16:58:34.052728+00:00"
+  },
+  {
+    "upload_id": "UP-0794BA29F8F4",
+    "dataset_name": "Village parcel corrections",
+    "integration_id": "ground-truth",
+    "integration_name": "Ground Truth & Survey Teams",
+    "status": "Queued - connector approval pending",
+    "queued_at": "2026-09-28T16:58:34.052728+00:00"
+  },
+  {
+    "upload_id": "UP-0794BA29F8F4",
+    "dataset_name": "Village parcel corrections",
+    "integration_id": "gnss-cors",
+    "integration_name": "GNSS / CORS Services",
+    "status": "Queued - connector approval pending",
+    "queued_at": "2026-09-28T16:58:34.052728+00:00"
+  },
+  {
+    "upload_id": "UP-0794BA29F8F4",
+    "dataset_name": "Village parcel corrections",
+    "integration_id": "drone-imagery",
+    "integration_name": "Drone & Remote Sensing",
+    "status": "Queued - connector approval pending",
+    "queued_at": "2026-09-28T16:58:34.052728+00:00"
+  },
+  {
+    "upload_id": "UP-0794BA29F8F4",
+    "dataset_name": "Village parcel corrections",
+    "integration_id": "utilities",
+    "integration_name": "Utilities & Infrastructure",
+    "status": "Queued - connector approval pending",
+    "queued_at": "2026-09-28T16:58:34.052728+00:00"
+  },
+  {
+    "upload_id": "UP-25B6290E2360",
+    "dataset_name": "Village parcel corrections",
+    "integration_id": "survey-land-records",
+    "integration_name": "Survey & Land Records",
+    "status": "Queued - connector approval pending",
+    "queued_at": "2026-09-28T17:05:32.262336+00:00"
+  },
+  {
+    "upload_id": "UP-25B6290E2360",
+    "dataset_name": "Village parcel corrections",
+    "integration_id": "revenue",
+    "integration_name": "Revenue Department",
+    "status": "Queued - connector approval pending",
+    "queued_at": "2026-09-28T17:05:32.262336+00:00"
+  },
+  {
+    "upload_id": "UP-25B6290E2360",
+    "dataset_name": "Village parcel corrections",
+    "integration_id": "municipal-gis",
+    "integration_name": "Municipal GIS / Urban Local Bodies",
+    "status": "Queued - connector approval pending",
+    "queued_at": "2026-09-28T17:05:32.262336+00:00"
+  },
+  {
+    "upload_id": "UP-25B6290E2360",
+    "dataset_name": "Village parcel corrections",
+    "integration_id": "ground-truth",
+    "integration_name": "Ground Truth & Survey Teams",
+    "status": "Queued - connector approval pending",
+    "queued_at": "2026-09-28T17:05:32.262336+00:00"
+  },
+  {
+    "upload_id": "UP-25B6290E2360",
+    "dataset_name": "Village parcel corrections",
+    "integration_id": "gnss-cors",
+    "integration_name": "GNSS / CORS Services",
+    "status": "Queued - connector approval pending",
+    "queued_at": "2026-09-28T17:05:32.262336+00:00"
+  },
+  {
+    "upload_id": "UP-25B6290E2360",
+    "dataset_name": "Village parcel corrections",
+    "integration_id": "drone-imagery",
+    "integration_name": "Drone & Remote Sensing",
+    "status": "Queued - connector approval pending",
+    "queued_at": "2026-09-28T17:05:32.262336+00:00"
+  },
+  {
+    "upload_id": "UP-25B6290E2360",
+    "dataset_name": "Village parcel corrections",
+    "integration_id": "utilities",
+    "integration_name": "Utilities & Infrastructure",
+    "status": "Queued - connector approval pending",
+    "queued_at": "2026-09-28T17:05:32.262336+00:00"
   }
 ]
