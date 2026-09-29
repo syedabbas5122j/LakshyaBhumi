@@ -175,9 +175,14 @@ export default function HarmonizationVisualization({ run, latestPublishedRun, ca
         </div>
         <div className="harmonization-heading-actions">
           <span className={`harmonization-status ${confidenceTone}`}>{liveResult ? 'Live Result' : run.status}</span>
+          {(liveResult || busy) && (
+            <button type="button" className="harmonization-run-button" onClick={() => setIsModalOpen(true)}>
+              {busy ? '👁 View Progress' : '👁 View Details'}
+            </button>
+          )}
           {canRun && (
             <button type="button" className="harmonization-run-button" onClick={triggerHarmonizationRun} disabled={busy}>
-              {busy ? 'Running GeoAI Engine...' : '⚡ Run Live Harmonization'}
+              {busy ? 'Running...' : '⚡ Run Live Harmonization'}
             </button>
           )}
         </div>
@@ -187,7 +192,7 @@ export default function HarmonizationVisualization({ run, latestPublishedRun, ca
 
       {/* BIG HARMONIZATION PROCESSOR MODAL DIALOG */}
       {isModalOpen && (
-        <div className="harmonization-modal-backdrop" onClick={() => !busy && setIsModalOpen(false)}>
+        <div className="harmonization-modal-backdrop" onClick={() => setIsModalOpen(false)}>
           <div className="harmonization-modal-dialog" onClick={(e) => e.stopPropagation()}>
             <div className="modal-dialog-header">
               <div>
@@ -198,7 +203,7 @@ export default function HarmonizationVisualization({ run, latestPublishedRun, ca
                 <span className={`modal-status-tag ${busy ? 'processing' : 'complete'}`}>
                   {busy ? `${isPaused ? 'Paused' : `Processing Step 0${modalCurrentStepIndex + 1}`} of 07 · ${stepSeconds}s / 10s` : 'Pipeline Completed Successfully ✓'}
                 </span>
-                <button type="button" className="modal-close-button" onClick={() => !busy && setIsModalOpen(false)} disabled={busy}>
+                <button type="button" className="modal-close-button" onClick={() => setIsModalOpen(false)}>
                   ✕
                 </button>
               </div>

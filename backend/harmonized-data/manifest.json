@@ -31,5 +31,82 @@
     "feature_count": 4,
     "geojson_filename": "live-DEMO-CADASTRAL-DEMO-DRONE-c7bfde19-harmonized.geojson",
     "report_filename": "live-DEMO-CADASTRAL-DEMO-DRONE-c7bfde19-pipeline-report.json"
+  },
+  {
+    "run_id": "live-DEMO-CADASTRAL-DEMO-DRONE-2e8171cb",
+    "source_dataset": "Demo cadastral database",
+    "target_dataset": "Demo drone database",
+    "started_by": "demo.state-gis-coordinator",
+    "started_role": "State GIS Coordinator",
+    "target_crs": "EPSG:4326",
+    "feature_count": 4,
+    "geojson_filename": "live-DEMO-CADASTRAL-DEMO-DRONE-2e8171cb-harmonized.geojson",
+    "report_filename": "live-DEMO-CADASTRAL-DEMO-DRONE-2e8171cb-pipeline-report.json"
+  },
+  {
+    "run_id": "live-DEMO-CADASTRAL-DEMO-DRONE-33398268",
+    "source_dataset": "Demo cadastral database",
+    "target_dataset": "Demo drone database",
+    "started_by": "demo.state-gis-coordinator",
+    "started_role": "State GIS Coordinator",
+    "target_crs": "EPSG:4326",
+    "feature_count": 4,
+    "geojson_filename": "live-DEMO-CADASTRAL-DEMO-DRONE-33398268-harmonized.geojson",
+    "report_filename": "live-DEMO-CADASTRAL-DEMO-DRONE-33398268-pipeline-report.json"
+  },
+  {
+    "run_id": "live-DEMO-CADASTRAL-DEMO-DRONE-72cd8ebd",
+    "source_dataset": "Demo cadastral database",
+    "target_dataset": "Demo drone database",
+    "started_by": "demo.state-gis-coordinator",
+    "started_role": "State GIS Coordinator",
+    "target_crs": "EPSG:4326",
+    "feature_count": 4,
+    "geojson_filename": "live-DEMO-CADASTRAL-DEMO-DRONE-72cd8ebd-harmonized.geojson",
+    "report_filename": "live-DEMO-CADASTRAL-DEMO-DRONE-72cd8ebd-pipeline-report.json"
+  },
+  {
+    "run_id": "live-DEMO-CADASTRAL-DEMO-DRONE-1f05cae5",
+    "source_dataset": "Demo cadastral database",
+    "target_dataset": "Demo drone database",
+    "started_by": "demo.state-gis-coordinator",
+    "started_role": "State GIS Coordinator",
+    "target_crs": "EPSG:4326",
+    "feature_count": 4,
+    "geojson_filename": "live-DEMO-CADASTRAL-DEMO-DRONE-1f05cae5-harmonized.geojson",
+    "report_filename": "live-DEMO-CADASTRAL-DEMO-DRONE-1f05cae5-pipeline-report.json"
+  },
+  {
+    "run_id": "live-DEMO-CADASTRAL-DEMO-DRONE-58d427c3",
+    "source_dataset": "Demo cadastral database",
+    "target_dataset": "Demo drone database",
+    "started_by": "demo.state-gis-coordinator",
+    "started_role": "State GIS Coordinator",
+    "target_crs": "EPSG:4326",
+    "feature_count": 4,
+    "geojson_filename": "live-DEMO-CADASTRAL-DEMO-DRONE-58d427c3-harmonized.geojson",
+    "report_filename": "live-DEMO-CADASTRAL-DEMO-DRONE-58d427c3-pipeline-report.json"
+  },
+  {
+    "run_id": "live-DEMO-CADASTRAL-DEMO-DRONE-1b83fb3f",
+    "source_dataset": "Demo cadastral database",
+    "target_dataset": "Demo drone database",
+    "started_by": "demo.state-gis-coordinator",
+    "started_role": "State GIS Coordinator",
+    "target_crs": "EPSG:4326",
+    "feature_count": 4,
+    "geojson_filename": "live-DEMO-CADASTRAL-DEMO-DRONE-1b83fb3f-harmonized.geojson",
+    "report_filename": "live-DEMO-CADASTRAL-DEMO-DRONE-1b83fb3f-pipeline-report.json"
+  },
+  {
+    "run_id": "live-DEMO-CADASTRAL-DEMO-DRONE-33c21d76",
+    "source_dataset": "Demo cadastral database",
+    "target_dataset": "Demo drone database",
+    "started_by": "demo.state-gis-coordinator",
+    "started_role": "State GIS Coordinator",
+    "target_crs": "EPSG:4326",
+    "feature_count": 4,
+    "geojson_filename": "live-DEMO-CADASTRAL-DEMO-DRONE-33c21d76-harmonized.geojson",
+    "report_filename": "live-DEMO-CADASTRAL-DEMO-DRONE-33c21d76-pipeline-report.json"
   }
 ]

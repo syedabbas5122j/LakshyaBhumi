@@ -119,8 +119,9 @@
 .modal-status-tag.complete { color: #8dd6a3; background: rgba(92, 187, 119, 0.13); }
 .modal-close-button { width: 30px; height: 30px; border: 1px solid rgba(221, 240, 227, 0.18); color: #dce7df; background: transparent; font-size: 14px; cursor: pointer; }
 .modal-close-button:disabled { opacity: 0.45; cursor: wait; }
-.modal-body-layout { min-height: 0; display: grid; grid-template-columns: 220px minmax(0, 1fr); overflow: auto; }
-.modal-steps-sidebar { padding: 16px 11px; border-right: 1px solid rgba(221, 240, 227, 0.12); background: #172c26; }
+.modal-body-layout { min-height: 0; flex: 1; display: grid; grid-template-columns: 220px minmax(0, 1fr); overflow: hidden; }
+.modal-steps-sidebar { padding: 16px 11px; border-right: 1px solid rgba(221, 240, 227, 0.12); background: #172c26; overflow-y: auto; scrollbar-width: none; }
+.modal-steps-sidebar::-webkit-scrollbar { display: none; }
 .modal-sidebar-title { display: block; margin: 0 7px 11px; color: #8ca99a; font-size: 8px; font-weight: 700; letter-spacing: 1.1px; }
 .modal-step-tab { width: 100%; min-height: 48px; margin: 3px 0; padding: 7px; display: flex; align-items: center; gap: 9px; border: 1px solid transparent; color: #c8d8ce; background: transparent; text-align: left; cursor: pointer; }
 .modal-step-tab:hover:not(:disabled) { background: rgba(255, 255, 255, 0.04); }
@@ -131,7 +132,8 @@
 .step-tab-info strong, .step-tab-info small { display: block; }
 .step-tab-info strong { overflow: hidden; color: inherit; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
 .step-tab-info small { margin-top: 3px; color: #88a393; font-size: 8px; }
-.modal-step-detail { min-width: 0; padding: 18px 20px; overflow: auto; }
+.modal-step-detail { min-width: 0; padding: 18px 20px; overflow-y: auto; scrollbar-width: none; }
+.modal-step-detail::-webkit-scrollbar { display: none; }
 .detail-top-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .detail-stage-num { color: #82c79a; font-size: 8px; font-weight: 700; letter-spacing: 1px; }
 .detail-top-bar h4 { margin: 4px 0 0; color: #f0f6f1; font: 500 21px 'Space Grotesk', sans-serif; }
