@@ -32,7 +32,12 @@ import {
   parcelGeojson,
   departmentIntegrations,
   sampleHarmonizationRuns,
+  type HarmonizationRun,
 } from './data'
+import {
+  downloadVersionGeoJson,
+  downloadVersionReport,
+} from './services/versionOutputService'
 
 const districtBounds: [[number, number], [number, number]] = [
   [78.9805, 13.2935],
@@ -333,6 +338,7 @@ function App() {
   const [outputFilter, setOutputFilter] = useState('All')
   const [runStatusFilter, setRunStatusFilter] = useState<'All' | 'Published' | 'In review' | 'Superseded'>('All')
   const [selectedRunId, setSelectedRunId] = useState('harm-014')
+  const [versionDownloadNotice, setVersionDownloadNotice] = useState<string | null>(null)
   const [conflictList, setConflictList] = useState(conflictRecords)
   const [decisionOutcome, setDecisionOutcome] = useState('Approve boundary correction')
   const [approvalState, setApprovalState] = useState<'Approved' | 'Pending review' | 'Escalated'>('Approved')
@@ -1662,6 +1668,17 @@ function App() {
         .sort((left, right) => right.createdAt.localeCompare(left.createdAt))[0]
       : undefined
 
+    const handleDownload = (run: HarmonizationRun, format: 'geojson' | 'report') => {
+      if (format === 'geojson') {
+        const file = downloadVersionGeoJson(run)
+        setVersionDownloadNotice(`${run.outputName} (v${run.outputVersion}) · ${file}`)
+      } else {
+        const file = downloadVersionReport(run)
+        setVersionDownloadNotice(`${run.outputName} (v${run.outputVersion}) Audit Report · ${file}`)
+      }
+      setTimeout(() => setVersionDownloadNotice(null), 4500)
+    }
+
     return (
       <>
         <header className="topbar">
@@ -1675,8 +1692,26 @@ function App() {
 
         <section className="version-history-notice">
           <strong>Demo output runs</strong>
-          <span>These examples demonstrate provenance and review tracking. AI processing, output storage, publishing, and rollback are not connected to the backend.</span>
+          <span>These examples demonstrate provenance and review tracking. Download harmonized GeoJSON feature datasets or complete governance & audit reports for any version.</span>
         </section>
+
+        {versionDownloadNotice && (
+          <div className="version-download-toast" role="status" aria-live="polite">
+            <div>
+              <span className="download-toast-icon">✓</span>
+              <strong>Download initiated:</strong>
+              <span>{versionDownloadNotice}</span>
+            </div>
+            <button
+              type="button"
+              className="version-download-toast-close"
+              onClick={() => setVersionDownloadNotice(null)}
+              aria-label="Close notification"
+            >
+              ×
+            </button>
+          </div>
+        )}
 
         <section className="version-history-toolbar" aria-label="Harmonization output filters">
           <label className="filter-group">
@@ -1695,13 +1730,30 @@ function App() {
               <option value="Superseded">Superseded</option>
             </select>
           </label>
+          {selectedRun && (
+            <div className="version-toolbar-quick-download">
+              <button
+                type="button"
+                className="version-download-toolbar-btn"
+                onClick={() => handleDownload(selectedRun, 'geojson')}
+                title={`Download ${selectedRun.outputName} v${selectedRun.outputVersion} GeoJSON`}
+              >
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+                <span>Download v{selectedRun.outputVersion} GeoJSON</span>
+              </button>
+            </div>
+          )}
           <span className="version-result-count">{filteredRuns.length} output runs</span>
         </section>
 
         <section className="version-table-wrap">
           <table className="version-table">
             <thead>
-              <tr><th>Harmonized output</th><th>Output version</th><th>Run date</th><th>Status</th><th>Model / metrics</th><th>Action</th></tr>
+              <tr><th>Harmonized output</th><th>Output version</th><th>Run date</th><th>Status</th><th>Model / metrics</th><th>Actions & Downloads</th></tr>
             </thead>
             <tbody>
               {filteredRuns.map((run) => {
@@ -1712,9 +1764,40 @@ function App() {
                     <td>{run.createdAt}</td>
                     <td><span className={`version-status ${run.status === 'In review' ? 'draft' : run.status.toLowerCase()}`}>{run.status}</span></td>
                     <td className="version-summary"><strong>{run.modelVersion}</strong><small>{run.confidence}% confidence · ±{run.uncertaintyMeters} m</small></td>
-                    <td><button type="button" className="version-compare-button" onClick={() => {
-                      setSelectedRunId(run.id)
-                    }}>Compare version</button></td>
+                    <td>
+                      <div className="version-actions-cell">
+                        <button
+                          type="button"
+                          className="version-compare-button"
+                          onClick={() => setSelectedRunId(run.id)}
+                        >
+                          Compare
+                        </button>
+                        <div className="version-download-button-group">
+                          <button
+                            type="button"
+                            className="version-download-button"
+                            title={`Download ${run.outputName} v${run.outputVersion} GeoJSON`}
+                            onClick={() => handleDownload(run, 'geojson')}
+                          >
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                              <polyline points="7 10 12 15 17 10" />
+                              <line x1="12" y1="15" x2="12" y2="3" />
+                            </svg>
+                            <span>GeoJSON</span>
+                          </button>
+                          <button
+                            type="button"
+                            className="version-download-button secondary"
+                            title={`Download ${run.outputName} v${run.outputVersion} Audit & Provenance Report`}
+                            onClick={() => handleDownload(run, 'report')}
+                          >
+                            <span>Report</span>
+                          </button>
+                        </div>
+                      </div>
+                    </td>
                   </tr>
                 )
               })}
@@ -1730,8 +1813,66 @@ function App() {
               <span>v{selectedRun.outputVersion} <b>↔</b> v{comparisonRun.outputVersion} (same output)</span>
             </div>
             <div className="version-comparison-grid">
-              <div><small>SELECTED VERSION · v{selectedRun.outputVersion} · {selectedRun.createdAt} · {selectedRun.status.toUpperCase()}</small><p>{selectedRun.summary}</p><p><strong>Inputs:</strong> {selectedRun.inputVersions.join(' · ')}</p></div>
-              <div><small>COMPARISON VERSION · v{comparisonRun.outputVersion} · {comparisonRun.createdAt} · {comparisonRun.status.toUpperCase()}</small><p>{comparisonRun.summary}</p><p><strong>Inputs:</strong> {comparisonRun.inputVersions.join(' · ')}</p></div>
+              <div>
+                <div className="version-comparison-card-top">
+                  <small>SELECTED VERSION · v{selectedRun.outputVersion} · {selectedRun.createdAt} · {selectedRun.status.toUpperCase()}</small>
+                  <div className="version-comparison-downloads">
+                    <button
+                      type="button"
+                      className="version-download-button"
+                      onClick={() => handleDownload(selectedRun, 'geojson')}
+                      title={`Download v${selectedRun.outputVersion} GeoJSON`}
+                    >
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                        <polyline points="7 10 12 15 17 10" />
+                        <line x1="12" y1="15" x2="12" y2="3" />
+                      </svg>
+                      <span>GeoJSON (v{selectedRun.outputVersion})</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="version-download-button secondary"
+                      onClick={() => handleDownload(selectedRun, 'report')}
+                      title={`Download v${selectedRun.outputVersion} Audit Report`}
+                    >
+                      <span>Report</span>
+                    </button>
+                  </div>
+                </div>
+                <p>{selectedRun.summary}</p>
+                <p><strong>Inputs:</strong> {selectedRun.inputVersions.join(' · ')}</p>
+              </div>
+              <div>
+                <div className="version-comparison-card-top">
+                  <small>COMPARISON VERSION · v{comparisonRun.outputVersion} · {comparisonRun.createdAt} · {comparisonRun.status.toUpperCase()}</small>
+                  <div className="version-comparison-downloads">
+                    <button
+                      type="button"
+                      className="version-download-button"
+                      onClick={() => handleDownload(comparisonRun, 'geojson')}
+                      title={`Download v${comparisonRun.outputVersion} GeoJSON`}
+                    >
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                        <polyline points="7 10 12 15 17 10" />
+                        <line x1="12" y1="15" x2="12" y2="3" />
+                      </svg>
+                      <span>GeoJSON (v{comparisonRun.outputVersion})</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="version-download-button secondary"
+                      onClick={() => handleDownload(comparisonRun, 'report')}
+                      title={`Download v${comparisonRun.outputVersion} Audit Report`}
+                    >
+                      <span>Report</span>
+                    </button>
+                  </div>
+                </div>
+                <p>{comparisonRun.summary}</p>
+                <p><strong>Inputs:</strong> {comparisonRun.inputVersions.join(' · ')}</p>
+              </div>
             </div>
           </section>
         )}

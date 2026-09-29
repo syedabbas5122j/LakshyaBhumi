@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import type { HarmonizationRun } from '../data'
 import { uploadApi, type UploadedDataset } from '../services/uploadApi'
 import { engineApi, type LiveHarmonizationResult } from '../services/engineApi'
+import { downloadVersionGeoJson, downloadVersionReport } from '../services/versionOutputService'
 import './HarmonizationVisualization.css'
 
 type HarmonizationVisualizationProps = {
@@ -395,10 +396,19 @@ export default function HarmonizationVisualization({ run, latestPublishedRun, ca
           <span className="harmonization-stage-label">{liveResult ? 'LIVE PIPELINE EXECUTION STEPS' : 'SEVEN-STAGE PIPELINE (CLICK ANY STEP TO INSPECT)'}</span>
           <div className="harmonization-live-actions">
             <small>{liveResult ? `${liveResult.source.name} + ${liveResult.target.name} · ${liveResult.output.features.toLocaleString()} output features` : 'Click on any pipeline step below to inspect granular metrics.'}</small>
-            {liveResult && <div className="harmonization-downloads">
-              <button type="button" onClick={() => downloadJson(`${liveResult.run_id}-harmonized.geojson`, liveResult.output.geojson)}>Download GeoJSON</button>
-              <button type="button" onClick={() => downloadJson(`${liveResult.run_id}-pipeline-report.json`, liveResult.output.report)}>Download report</button>
-            </div>}
+            <div className="harmonization-downloads">
+              {liveResult ? (
+                <>
+                  <button type="button" onClick={() => downloadJson(`${liveResult.run_id}-harmonized.geojson`, liveResult.output.geojson)}>Download GeoJSON</button>
+                  <button type="button" onClick={() => downloadJson(`${liveResult.run_id}-pipeline-report.json`, liveResult.output.report)}>Download report</button>
+                </>
+              ) : (
+                <>
+                  <button type="button" onClick={() => downloadVersionGeoJson(run)}>Download v{run.outputVersion} GeoJSON</button>
+                  <button type="button" onClick={() => downloadVersionReport(run)}>Download report</button>
+                </>
+              )}
+            </div>
           </div>
         </div>
 
@@ -465,7 +475,17 @@ export default function HarmonizationVisualization({ run, latestPublishedRun, ca
         </div>
         <div className="harmonization-connector" aria-hidden="true"><span>publish</span><b>→</b></div>
         <div className="harmonization-stage harmonization-output">
-          <span className="harmonization-stage-label">03 / OUTPUT</span>
+          <div className="harmonization-output-title-row">
+            <span className="harmonization-stage-label">03 / OUTPUT</span>
+            <button
+              type="button"
+              className="harmonization-inline-download-btn"
+              onClick={() => liveResult ? downloadJson(`${liveResult.run_id}-harmonized.geojson`, liveResult.output.geojson) : downloadVersionGeoJson(run)}
+              title="Download this version output"
+            >
+              📥 Download
+            </button>
+          </div>
           <strong>{liveResult ? 'Harmonized Output · Version 1.0' : `${run.outputName} · Version ${run.outputVersion}`}</strong>
           <small>{liveResult ? `File: ${liveResult.stored_files?.geojson_filename ?? 'harmonized-output.geojson'} · ${liveResult.output.features.toLocaleString()} generated features` : `${run.changedFeatures.toLocaleString()} changed features`}</small>
         </div>

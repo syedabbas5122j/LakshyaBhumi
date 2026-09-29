@@ -19,8 +19,11 @@
 .harmonization-live-heading small { color: #52645d; font-size: 9px; }
 .harmonization-live-actions { display: flex; align-items: center; gap: 12px; }
 .harmonization-downloads { display: flex; gap: 6px; }
-.harmonization-downloads button { padding: 6px 8px; border: 1px solid rgba(52, 140, 139, 0.35); color: #276e69; background: transparent; font: 700 8px 'DM Sans', sans-serif; cursor: pointer; }
-.harmonization-downloads button:hover { background: rgba(52, 140, 139, 0.1); }
+.harmonization-downloads button { padding: 6px 8px; border: 1px solid rgba(52, 140, 139, 0.35); color: #276e69; background: transparent; font: 700 8px 'DM Sans', sans-serif; cursor: pointer; border-radius: 2px; transition: all 0.15s ease; }
+.harmonization-downloads button:hover { background: rgba(52, 140, 139, 0.12); border-color: #348c8b; }
+.harmonization-output-title-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.harmonization-inline-download-btn { padding: 3px 7px; border: 1px solid #348c8b; color: #fff; background: #348c8b; font: 700 7.5px 'DM Sans', sans-serif; cursor: pointer; border-radius: 2px; line-height: 1.2; transition: all 0.15s ease; }
+.harmonization-inline-download-btn:hover { background: #246a69; }
 .harmonization-step-panels { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 9px; padding-top: 11px; }
 .harmonization-step-panel { min-height: 154px; padding: 12px; display: flex; flex-direction: column; border: 1px solid rgba(24, 51, 45, 0.14); background: rgba(255, 255, 255, 0.36); }
 .harmonization-step-panel.completed { border-color: rgba(47, 127, 86, 0.42); background: rgba(47, 127, 86, 0.1); }

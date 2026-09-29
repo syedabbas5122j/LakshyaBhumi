@@ -1353,9 +1353,27 @@
 .version-status.current { color: #27613d; background: rgba(47, 127, 86, 0.12); }
 .version-status.superseded { color: #59645d; background: rgba(82, 100, 93, 0.1); }
 .version-status.draft { color: #785318; background: rgba(239, 200, 74, 0.2); }
-.version-compare-button { padding: 6px 8px; border: 1px solid rgba(52, 140, 139, 0.34); color: #276e69; background: transparent; font: inherit; font-size: 9px; cursor: pointer; }
-.version-compare-button:hover:not(:disabled) { background: rgba(52, 140, 139, 0.1); }
+.version-actions-cell { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.version-download-button-group { display: inline-flex; align-items: center; gap: 5px; }
+.version-compare-button { padding: 5px 8px; border: 1px solid rgba(52, 140, 139, 0.34); color: #276e69; background: transparent; font: inherit; font-size: 8.5px; font-weight: 600; cursor: pointer; border-radius: 2px; transition: all 0.15s ease; white-space: nowrap; }
+.version-compare-button:hover:not(:disabled) { background: rgba(52, 140, 139, 0.12); border-color: #348c8b; }
 .version-compare-button:disabled { border-color: rgba(24, 51, 45, 0.1); color: #8b9690; cursor: default; }
+.version-download-button { display: inline-flex; align-items: center; gap: 4px; padding: 5px 8px; border: 1px solid #348c8b; color: #ffffff; background: #348c8b; font: 700 8.5px 'DM Sans', sans-serif; letter-spacing: 0.3px; cursor: pointer; border-radius: 2px; transition: all 0.15s ease; white-space: nowrap; }
+.version-download-button:hover { background: #246a69; border-color: #246a69; box-shadow: 0 2px 6px rgba(52, 140, 139, 0.25); }
+.version-download-button.secondary { border-color: rgba(52, 140, 139, 0.35); color: #276e69; background: rgba(52, 140, 139, 0.06); font-weight: 600; }
+.version-download-button.secondary:hover { background: rgba(52, 140, 139, 0.15); border-color: #348c8b; }
+.version-download-button svg { flex-shrink: 0; }
+.version-toolbar-quick-download { margin-left: auto; }
+.version-download-toolbar-btn { display: inline-flex; align-items: center; gap: 5px; padding: 6px 11px; border: 1px solid #348c8b; background: #348c8b; color: #ffffff; font: 700 9px 'DM Sans', sans-serif; cursor: pointer; border-radius: 2px; transition: all 0.15s ease; white-space: nowrap; }
+.version-download-toolbar-btn:hover { background: #246a69; border-color: #246a69; }
+.version-download-toast { display: flex; align-items: center; justify-content: space-between; padding: 9px 14px; margin-bottom: 12px; background: rgba(52, 140, 139, 0.1); border: 1px solid rgba(52, 140, 139, 0.35); border-left: 4px solid #348c8b; color: #1b4b44; font-size: 9.5px; border-radius: 2px; }
+.version-download-toast > div { display: flex; align-items: center; gap: 6px; }
+.download-toast-icon { display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; background: #348c8b; color: #fff; font-size: 9px; font-weight: bold; }
+.version-download-toast strong { color: #18332d; }
+.version-download-toast-close { border: none; background: transparent; font-size: 14px; color: #52645d; cursor: pointer; line-height: 1; padding: 0 4px; }
+.version-download-toast-close:hover { color: #18332d; }
+.version-comparison-card-top { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; padding-bottom: 8px; border-bottom: 1px solid rgba(24, 51, 45, 0.1); }
+.version-comparison-downloads { display: flex; gap: 6px; align-items: center; }
 .version-empty { padding: 28px !important; color: #66776e !important; text-align: center; }
 .version-comparison { padding: 16px; border: 1px solid rgba(24, 51, 45, 0.14); background: rgba(255, 255, 255, 0.3); }
 .version-comparison-heading { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; padding-bottom: 12px; border-bottom: 1px solid rgba(24, 51, 45, 0.12); }

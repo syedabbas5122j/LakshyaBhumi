@@ -108,5 +108,27 @@
     "feature_count": 4,
     "geojson_filename": "live-DEMO-CADASTRAL-DEMO-DRONE-33c21d76-harmonized.geojson",
     "report_filename": "live-DEMO-CADASTRAL-DEMO-DRONE-33c21d76-pipeline-report.json"
+  },
+  {
+    "run_id": "live-DEMO-CADASTRAL-DEMO-DRONE-47ce5baf",
+    "source_dataset": "Demo cadastral database",
+    "target_dataset": "Demo drone database",
+    "started_by": "demo.state-gis-coordinator",
+    "started_role": "State GIS Coordinator",
+    "target_crs": "EPSG:4326",
+    "feature_count": 4,
+    "geojson_filename": "live-DEMO-CADASTRAL-DEMO-DRONE-47ce5baf-harmonized.geojson",
+    "report_filename": "live-DEMO-CADASTRAL-DEMO-DRONE-47ce5baf-pipeline-report.json"
+  },
+  {
+    "run_id": "live-DEMO-CADASTRAL-DEMO-DRONE-e374b8d6",
+    "source_dataset": "Demo cadastral database",
+    "target_dataset": "Demo drone database",
+    "started_by": "demo.state-gis-coordinator",
+    "started_role": "State GIS Coordinator",
+    "target_crs": "EPSG:4326",
+    "feature_count": 4,
+    "geojson_filename": "live-DEMO-CADASTRAL-DEMO-DRONE-e374b8d6-harmonized.geojson",
+    "report_filename": "live-DEMO-CADASTRAL-DEMO-DRONE-e374b8d6-pipeline-report.json"
   }
 ]
